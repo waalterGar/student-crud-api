@@ -5,6 +5,7 @@ import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.StudentMapper;
 import com.students.crud_students.model.Student;
+import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.StudentService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.List;
 public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
+    private final NotificationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -38,8 +40,21 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public StudentResponseDTO createStudent(StudentRequestDTO requestDTO) {
+        if (studentRepository.existsByEmail(requestDTO.email())) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+
         Student student = StudentMapper.toEntity(requestDTO);
         Student savedStudent = studentRepository.save(student);
+
+        // Publicación asíncrona del evento hacia RabbitMQ
+        eventPublisher.publishStudentCreatedEvent(
+                savedStudent.getId(),
+                savedStudent.getFirstName(),
+                savedStudent.getLastName(),
+                savedStudent.getEmail()
+        );
+
         return StudentMapper.toResponseDto(savedStudent);
     }
 
