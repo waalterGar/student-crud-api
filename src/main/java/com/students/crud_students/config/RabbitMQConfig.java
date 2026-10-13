@@ -18,6 +18,9 @@ public class RabbitMQConfig {
     @Value("${app.rabbitmq.queue}")
     private String queueName;
 
+    @Value("${app.rabbitmq.email-queue}")
+    private String emailQueueName;
+
     @Value("${app.rabbitmq.routing-key}")
     private String routingKey;
 
@@ -32,8 +35,18 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue emailQueue() { return QueueBuilder.durable(emailQueueName).build(); }
+
+    @Bean
     public Binding studentBinding(Queue studentQueue, TopicExchange studentExchange) {
         return BindingBuilder.bind(studentQueue)
+                .to(studentExchange)
+                .with(routingKey);
+    }
+
+    @Bean
+    public Binding emailBinding(Queue emailQueue, TopicExchange studentExchange) {
+        return BindingBuilder.bind(emailQueue)
                 .to(studentExchange)
                 .with(routingKey);
     }

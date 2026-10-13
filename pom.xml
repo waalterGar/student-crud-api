@@ -72,6 +72,11 @@
 			<version>2.5.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- Spring AMQP / RabbitMQ -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
