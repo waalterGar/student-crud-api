@@ -22,21 +22,23 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @Slf4j
 public class EmailEventListener {
+
     private final StringRedisTemplate redisTemplate;
-    private final StudentRepository studentRepository;
     private final EmailService emailService;
 
     private static final String IDEMPOTENCY_KEY_PREFIX = "processed_event:email:";
 
-    @RabbitListener(queues = "${app.rabbitmq.email-queue}")
+    @RabbitListener(queues = "${rabbitmq.queue.email.name:student.email.queue}")
     public void handleStudentCreated(StudentCreatedEvent event) {
+        log.info("Received event for email dispatch: {}", event.eventId());
+
         String redisKey = IDEMPOTENCY_KEY_PREFIX + event.eventId();
 
         Boolean isNewEvent = redisTemplate.opsForValue()
                 .setIfAbsent(redisKey, "PROCESSED", Duration.ofHours(24));
 
         if (Boolean.FALSE.equals(isNewEvent)) {
-            log.warn("Event with ID {} has already been processed. Skipping notification.", event.eventId());
+            log.warn("Event with ID {} has already been processed. Skipping email.", event.eventId());
             return;
         }
 
