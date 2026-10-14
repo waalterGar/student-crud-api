@@ -9,6 +9,9 @@ import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.StudentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
@@ -31,7 +35,9 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "students", key = "#id")
     public StudentResponseDTO getStudentById(Long id) {
+        log.info("Fetching student with ID: {} from PostgreSQL", id);
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
         return StudentMapper.toResponseDto(student);
@@ -60,9 +66,11 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "students", key = "#id")
     public StudentResponseDTO updateStudent(Long id, StudentRequestDTO requestDTO) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
+        log.info("Updating student ID: {} in PostgreSQL", id);
 
         student.setFirstName(requestDTO.firstName());
         student.setLastName(requestDTO.lastName());
@@ -70,15 +78,22 @@ public class StudentServiceImpl implements StudentService {
         student.setAge(requestDTO.age());
 
         Student updatedStudent = studentRepository.save(student);
+
+        log.info("Student ID: {} updated in DB. Cache evicted for key: students::{}", id, id);
         return StudentMapper.toResponseDto(updatedStudent);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "students", key = "#id")
     public void deleteStudent(Long id) {
+        log.info("Deleting student ID: {} from PostgreSQL", id);
+
         if (!studentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Student not found with id: " + id);
         }
         studentRepository.deleteById(id);
+
+        log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
     }
 }

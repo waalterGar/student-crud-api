@@ -9,6 +9,7 @@ import com.students.crud_students.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class NotificationEventListener {
 
     @RabbitListener(queues = "${app.rabbitmq.queue}")
     @Transactional
+    @CacheEvict(value = "student_notifications", allEntries = true)
     public void handleStudentCreated(StudentCreatedEvent event) {
         String redisKey = IDEMPOTENCY_KEY_PREFIX + event.eventId();
 
@@ -43,6 +45,8 @@ public class NotificationEventListener {
         Student student = studentRepository.findById(event.studentId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found with ID: " + event.studentId()));
 
+        log.info("Creating notification for student ID: {} [Event ID: {}]", event.studentId(), event.eventId());
+
         Notification notification = Notification.builder()
                 .message("Welcome to the platform, " + event.firstName() + "!")
                 .type(NotificationType.WELCOME)
@@ -53,7 +57,6 @@ public class NotificationEventListener {
 
         notificationRepository.save(notification);
 
-        log.info("Notification successfully stored in DB for student ID: {} [Event ID: {}]",
-                event.studentId(), event.eventId());
+        log.info("Notification successfully saved in DB and cache evicted for student ID: {}", event.studentId());
     }
 }

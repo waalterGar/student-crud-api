@@ -1,6 +1,7 @@
 package com.students.crud_students.controller;
 
 import com.students.crud_students.dto.NotificationResponseDTO;
+import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,7 +17,7 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @GetMapping("/students/{studentId}/notifications")
-    public ResponseEntity<Page<NotificationResponseDTO>> getNotificationsByStudent(
+    public ResponseEntity<PageResponse<NotificationResponseDTO>> getNotificationsByStudent(
             @PathVariable Long studentId,
             Pageable pageable
     ) {

@@ -2,6 +2,7 @@ package com.students.crud_students.dto;
 
 import com.students.crud_students.model.NotificationType;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public record NotificationResponseDTO(
         Long id,
@@ -9,5 +10,7 @@ public record NotificationResponseDTO(
         NotificationType type,
         boolean read,
         Long studentId,
+
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         LocalDateTime createdAt
 ) {}
