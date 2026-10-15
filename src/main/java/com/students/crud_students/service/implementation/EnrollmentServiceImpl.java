@@ -3,13 +3,17 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.EnrollmentRequestDTO;
 import com.students.crud_students.dto.EnrollmentResponseDTO;
 import com.students.crud_students.dto.UpdateGradeDTO;
+import com.students.crud_students.event.StudentEnrolledEvent;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.model.*;
+import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,9 +27,16 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "course_detail", key = "#dto.courseId()"),
+            @CacheEvict(value = "course_detail_code", allEntries = true),
+            @CacheEvict(value = "courses", allEntries = true),
+            @CacheEvict(value = "courses_by_status", allEntries = true)
+    })
     public EnrollmentResponseDTO enrollStudent(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findById(dto.studentId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + dto.studentId()));
@@ -50,6 +61,20 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         Enrollment enrollment = EnrollmentMapper.toEntity(student, course);
         Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+
+        // Publicar evento asíncrono a través de NotificationEventPublisher
+        StudentEnrolledEvent event = new StudentEnrolledEvent(
+                savedEnrollment.getId(),
+                student.getId(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getEmail(),
+                course.getId(),
+                course.getCode(),
+                course.getTitle(),
+                savedEnrollment.getEnrolledAt()
+        );
+
+        notificationEventPublisher.publishStudentEnrolledEvent(event);
 
         return EnrollmentMapper.toResponseDto(savedEnrollment);
     }
@@ -108,6 +133,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "course_detail", allEntries = true),
+            @CacheEvict(value = "course_detail_code", allEntries = true),
+            @CacheEvict(value = "courses", allEntries = true),
+            @CacheEvict(value = "courses_by_status", allEntries = true)
+    })
     public EnrollmentResponseDTO cancelEnrollment(Long enrollmentId) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + enrollmentId));
