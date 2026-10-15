@@ -22,15 +22,23 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.email.name:student.email.queue}")
     private String emailQueueName;
 
+    @Value("${rabbitmq.queue.enrollment.name:student.enrollment.queue}")
+    private String enrollmentQueueName;
+
     @Value("${rabbitmq.routing.key:student.created}")
     private String routingKey;
+
+    @Value("${rabbitmq.routing.key.enrollment:student.enrollment.created}")
+    private String enrollmentRoutingKey;
 
     public static final String DLX_NAME = "student.dlx";
     public static final String NOTIFICATION_DLQ_NAME = "student.notification.dlq";
     public static final String EMAIL_DLQ_NAME = "student.email.dlq";
+    public static final String ENROLLMENT_DLQ_NAME = "student.enrollment.dlq";
 
     public static final String NOTIFICATION_DLQ_ROUTING_KEY = "student.notification.dead";
     public static final String EMAIL_DLQ_ROUTING_KEY = "student.email.dead";
+    public static final String ENROLLMENT_DLQ_ROUTING_KEY = "student.enrollment.dead";
 
     @Bean
     public TopicExchange studentExchange() {
@@ -53,6 +61,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue enrollmentDeadLetterQueue() {
+        return QueueBuilder.durable(ENROLLMENT_DLQ_NAME).build();
+    }
+
+    @Bean
     public Binding notificationDlqBinding() {
         return BindingBuilder
                 .bind(notificationDeadLetterQueue())
@@ -66,6 +79,14 @@ public class RabbitMQConfig {
                 .bind(emailDeadLetterQueue())
                 .to(deadLetterExchange())
                 .with(EMAIL_DLQ_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding enrollmentDlqBinding() {
+        return BindingBuilder
+                .bind(enrollmentDeadLetterQueue())
+                .to(deadLetterExchange())
+                .with(ENROLLMENT_DLQ_ROUTING_KEY);
     }
 
     @Bean
@@ -91,6 +112,17 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue enrollmentQueue() {
+        Map<String, Object> args = new HashMap<>();
+        args.put("x-dead-letter-exchange", DLX_NAME);
+        args.put("x-dead-letter-routing-key", ENROLLMENT_DLQ_ROUTING_KEY);
+
+        return QueueBuilder.durable(enrollmentQueueName)
+                .withArguments(args)
+                .build();
+    }
+
+    @Bean
     public Binding notificationBinding() {
         return BindingBuilder
                 .bind(notificationQueue())
@@ -104,6 +136,14 @@ public class RabbitMQConfig {
                 .bind(emailQueue())
                 .to(studentExchange())
                 .with(routingKey);
+    }
+
+    @Bean
+    public Binding enrollmentBinding() {
+        return BindingBuilder
+                .bind(enrollmentQueue())
+                .to(studentExchange())
+                .with(enrollmentRoutingKey);
     }
 
     @Bean
