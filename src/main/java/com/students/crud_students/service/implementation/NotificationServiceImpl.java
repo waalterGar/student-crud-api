@@ -26,10 +26,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(
-            value = "student_notifications",
-            key = "#studentId + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize"
-    )
+    @Cacheable(value = "student_notifications", key = "#studentId")
     public PageResponse<NotificationResponseDTO> getNotificationsByStudent(Long studentId, Pageable pageable) {
         log.info("Fetching notifications from PostgreSQL for student ID: {}, page: {}",
                 studentId, pageable.getPageNumber());
@@ -46,7 +43,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "student_notifications", allEntries = true)
+    @CacheEvict(value = "student_notifications", key = "#result.studentId()")
     public NotificationResponseDTO markAsRead(Long notificationId) {
         log.info("Marking notification ID: {} as read", notificationId);
         Notification notification = notificationRepository.findById(notificationId)
