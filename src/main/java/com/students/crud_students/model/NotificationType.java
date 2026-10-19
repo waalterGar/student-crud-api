@@ -7,6 +7,7 @@ public enum NotificationType {
     // Academic & Enrollment
     COURSE_ENROLLED,        // Confirmación de matriculación en asignatura/curso
     GRADE_PUBLISHED,        // Calificación o nota publicada
+    COURSE_UNENROLLED,      // Confirmación de baja o cancelación de matrícula
 
     // Administrative & Billing
     PAYMENT_DUE,            // Aviso de pago o cuota pendiente

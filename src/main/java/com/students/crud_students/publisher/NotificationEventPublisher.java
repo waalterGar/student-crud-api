@@ -2,6 +2,8 @@ package com.students.crud_students.publisher;
 
 import com.students.crud_students.event.StudentCreatedEvent;
 import com.students.crud_students.event.StudentEnrolledEvent;
+import com.students.crud_students.event.StudentGradedEvent;
+import com.students.crud_students.event.StudentUnenrolledEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -27,6 +29,12 @@ public class NotificationEventPublisher {
     @Value("${app.rabbitmq.enrollment-routing-key:student.enrollment.created}")
     private String studentEnrolledRoutingKey;
 
+    @Value("${app.rabbitmq.unenrollment-routing-key:student.enrollment.cancelled}")
+    private String studentUnenrolledRoutingKey;
+
+    @Value("${app.rabbitmq.grading-routing-key:student.enrollment.graded}")
+    private String gradingRoutingKey;
+
     public void publishStudentCreatedEvent(Long studentId, String firstName, String lastName, String email) {
         StudentCreatedEvent event = new StudentCreatedEvent(
                 UUID.randomUUID().toString(),
@@ -48,5 +56,19 @@ public class NotificationEventPublisher {
                 event.enrollmentId(), exchangeName, studentEnrolledRoutingKey);
 
         rabbitTemplate.convertAndSend(exchangeName, studentEnrolledRoutingKey, event);
+    }
+
+    public void publishStudentUnenrolledEvent(StudentUnenrolledEvent event) {
+        log.info("Publishing StudenUnenrolledEvent for enrollmentId {} to exchange {} using routing key {}",
+                event.enrollmentId(), exchangeName, studentUnenrolledRoutingKey);
+
+        rabbitTemplate.convertAndSend(exchangeName, studentUnenrolledRoutingKey, event);
+    }
+
+    public void publishStudentGradedEvent(StudentGradedEvent event) {
+        log.info("Publishing StudentGradedEvent for enrollmentId {} to exchange {} using routing key {}",
+                event.enrollmentId(), exchangeName, studentUnenrolledRoutingKey);
+
+        rabbitTemplate.convertAndSend(exchangeName, studentUnenrolledRoutingKey, event);
     }
 }
