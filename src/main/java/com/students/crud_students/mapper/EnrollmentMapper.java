@@ -1,5 +1,6 @@
 package com.students.crud_students.mapper;
 
+import com.students.crud_students.dto.CourseProgressDTO;
 import com.students.crud_students.dto.EnrollmentResponseDTO;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.Enrollment;
@@ -30,5 +31,17 @@ public class EnrollmentMapper {
         enrollment.setCourse(course);
         enrollment.setStatus(EnrollmentStatus.ACTIVE);
         return enrollment;
+    }
+
+    public static CourseProgressDTO toProgressDto(Enrollment enrollment) {
+        return new CourseProgressDTO(
+                enrollment.getId(),
+                enrollment.getCourse().getId(),
+                enrollment.getCourse().getCode(),
+                enrollment.getCourse().getTitle(),
+                enrollment.getStatus(),
+                enrollment.getGrade(),
+                enrollment.getEnrolledAt()
+        );
     }
 }

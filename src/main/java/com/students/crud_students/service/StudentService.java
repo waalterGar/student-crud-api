@@ -1,5 +1,6 @@
 package com.students.crud_students.service;
 
+import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 
@@ -11,4 +12,6 @@ public interface StudentService {
     StudentResponseDTO createStudent(StudentRequestDTO requestDTO);
     StudentResponseDTO updateStudent(Long id, StudentRequestDTO requestDTO);
     void deleteStudent(Long id);
+
+    AcademicHistoryDTO getStudentAcademicHistory(Long id);
 }

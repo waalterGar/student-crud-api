@@ -3,6 +3,8 @@ package com.students.crud_students.repository;
 import com.students.crud_students.model.Enrollment;
 import com.students.crud_students.model.EnrollmentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -20,4 +22,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByCourseId(Long courseId);
 
     List<Enrollment> findByStatus(EnrollmentStatus status);
+
+    @Query("SELECT e FROM Enrollment e JOIN FETCH e.course WHERE e.student.id = :studentId")
+    List<Enrollment> findAllByStudentIdWithCourse(@Param("studentId") Long studentId);
 }

@@ -1,5 +1,6 @@
 package com.students.crud_students.controller;
 
+import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.service.StudentService;
@@ -62,5 +63,10 @@ public class StudentController {
     public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {
         studentService.deleteStudent(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/academic-history")
+    public ResponseEntity<AcademicHistoryDTO> getStudentAcademicHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.getStudentAcademicHistory(id));
     }
 }
