@@ -31,6 +31,12 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing.key.enrollment:student.enrollment.created}")
     private String enrollmentRoutingKey;
 
+    @Value("${app.rabbitmq.unenrollment-routing-key:student.enrollment.cancelled}")
+    private String unenrollmentRoutingKey;
+
+    @Value("${app.rabbitmq.grading-routing-key:student.enrollment.graded}")
+    private String gradingRoutingKey;
+
     public static final String DLX_NAME = "student.dlx";
     public static final String NOTIFICATION_DLQ_NAME = "student.notification.dlq";
     public static final String EMAIL_DLQ_NAME = "student.email.dlq";
@@ -144,6 +150,22 @@ public class RabbitMQConfig {
                 .bind(enrollmentQueue())
                 .to(studentExchange())
                 .with(enrollmentRoutingKey);
+    }
+
+    @Bean
+    public Binding unenrollmentBinding() {
+        return BindingBuilder
+                .bind(enrollmentQueue())
+                .to(studentExchange())
+                .with(unenrollmentRoutingKey);
+    }
+
+    @Bean
+    public Binding gradingBinding() {
+        return BindingBuilder
+                .bind(enrollmentQueue())
+                .to(studentExchange())
+                .with(gradingRoutingKey);
     }
 
     @Bean

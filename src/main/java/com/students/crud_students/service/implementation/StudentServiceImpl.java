@@ -1,11 +1,16 @@
 package com.students.crud_students.service.implementation;
 
+import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.exception.ResourceNotFoundException;
+import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.mapper.StudentMapper;
+import com.students.crud_students.model.Enrollment;
+import com.students.crud_students.model.EnrollmentStatus;
 import com.students.crud_students.model.Student;
 import com.students.crud_students.publisher.NotificationEventPublisher;
+import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.StudentService;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +20,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +31,7 @@ import java.util.List;
 public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final NotificationEventPublisher eventPublisher;
 
     @Override
@@ -95,5 +104,47 @@ public class StudentServiceImpl implements StudentService {
         studentRepository.deleteById(id);
 
         log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
+    }
+
+    @Override
+    public AcademicHistoryDTO getStudentAcademicHistory(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));
+
+        List<Enrollment> enrollments = enrollmentRepository.findAllByStudentIdWithCourse(studentId);
+
+        return new AcademicHistoryDTO(
+                student.getId(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getEmail(),
+                enrollments.size(),
+                countByStatus(enrollments, EnrollmentStatus.ACTIVE),
+                countByStatus(enrollments, EnrollmentStatus.COMPLETED),
+                countByStatus(enrollments, EnrollmentStatus.FAILED),
+                countByStatus(enrollments, EnrollmentStatus.CANCELLED),
+                calculateAverageGrade(enrollments),
+                enrollments.stream().map(EnrollmentMapper::toProgressDto).toList()
+        );
+
+    }
+
+    private int countByStatus(List<Enrollment> enrollments, EnrollmentStatus status) {
+        return (int) enrollments.stream()
+                .filter(e -> e.getStatus() == status)
+                .count();
+    }
+
+    private BigDecimal calculateAverageGrade(List<Enrollment> enrollments) {
+        List<BigDecimal> grades = enrollments.stream()
+                .map(Enrollment::getGrade)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (grades.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal sum = grades.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return sum.divide(BigDecimal.valueOf(grades.size()), 2, RoundingMode.HALF_UP);
     }
 }

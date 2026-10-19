@@ -4,6 +4,8 @@ import com.students.crud_students.dto.EnrollmentRequestDTO;
 import com.students.crud_students.dto.EnrollmentResponseDTO;
 import com.students.crud_students.dto.UpdateGradeDTO;
 import com.students.crud_students.event.StudentEnrolledEvent;
+import com.students.crud_students.event.StudentGradedEvent;
+import com.students.crud_students.event.StudentUnenrolledEvent;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.model.*;
 import com.students.crud_students.publisher.NotificationEventPublisher;
@@ -18,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -48,21 +52,37 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new IllegalStateException("Cannot enroll in a course that is not ACTIVE");
         }
 
-        if (enrollmentRepository.existsByStudentIdAndCourseId(student.getId(), course.getId())) {
-            throw new IllegalStateException("Student is already enrolled in this course");
-        }
-
         if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
             throw new IllegalStateException("Course has reached its maximum capacity (" + course.getMaxCapacity() + ")");
         }
 
+        Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByStudentIdAndCourseId(
+                dto.studentId(),
+                dto.courseId()
+        );
+
+        Enrollment enrollmentToSave;
+
+        if (existingEnrollmentOpt.isPresent()) {
+            Enrollment existingEnrollment = existingEnrollmentOpt.get();
+
+            if (existingEnrollment.getStatus() == EnrollmentStatus.ACTIVE) {
+                throw new IllegalStateException("Student already has an ACTIVE enrollment in this course");
+            }
+            existingEnrollment.setStatus(EnrollmentStatus.ACTIVE);
+            existingEnrollment.setGrade(null);
+            existingEnrollment.setEnrolledAt(LocalDateTime.now());
+            enrollmentToSave = existingEnrollment;
+
+        } else {
+            // Si no existe registro previo, se crea una entidad nueva
+            enrollmentToSave = EnrollmentMapper.toEntity(student, course);
+        }
         course.setCurrentEnrolled(course.getCurrentEnrolled() + 1);
         courseRepository.save(course);
 
-        Enrollment enrollment = EnrollmentMapper.toEntity(student, course);
-        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+        Enrollment savedEnrollment = enrollmentRepository.save(enrollmentToSave);
 
-        // Publicar evento asíncrono a través de NotificationEventPublisher
         StudentEnrolledEvent event = new StudentEnrolledEvent(
                 savedEnrollment.getId(),
                 student.getId(),
@@ -128,6 +148,23 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         }
 
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
+
+        //publicar evento asíncrono a través de NotificationEventPublisher
+        StudentGradedEvent studentGradedEvent = new StudentGradedEvent(
+                updatedEnrollment.getId(),
+                updatedEnrollment.getStudent().getId(),
+                updatedEnrollment.getStudent().getFirstName() + " " + updatedEnrollment.getStudent().getLastName(),
+                updatedEnrollment.getStudent().getEmail(),
+                updatedEnrollment.getCourse().getId(),
+                updatedEnrollment.getCourse().getCode(),
+                updatedEnrollment.getCourse().getTitle(),
+                updatedEnrollment.getGrade(),
+                updatedEnrollment.getStatus(),
+                updatedEnrollment.getEnrolledAt()
+        );
+        notificationEventPublisher.publishStudentGradedEvent(studentGradedEvent);
+
+
         return EnrollmentMapper.toResponseDto(updatedEnrollment);
     }
 
@@ -154,8 +191,22 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
             courseRepository.save(course);
         }
-
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
+        Student student = updatedEnrollment.getStudent();
+
+        // Publicar evento asíncrono a través de NotificationEventPublisher
+        StudentUnenrolledEvent event = new StudentUnenrolledEvent(
+                updatedEnrollment.getId(),
+                student.getId(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getEmail(),
+                course.getId(),
+                course.getCode(),
+                course.getTitle(),
+                updatedEnrollment.getEnrolledAt()
+        );
+        notificationEventPublisher.publishStudentUnenrolledEvent(event);
+
         return EnrollmentMapper.toResponseDto(updatedEnrollment);
     }
 }
