@@ -3,12 +3,14 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
+import com.students.crud_students.dto.StudentUpdateDTO;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.mapper.StudentMapper;
 import com.students.crud_students.model.Enrollment;
 import com.students.crud_students.model.EnrollmentStatus;
 import com.students.crud_students.model.Student;
+import com.students.crud_students.model.StudentStatus;
 import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
@@ -76,15 +78,15 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     @CacheEvict(value = "students", key = "#id")
-    public StudentResponseDTO updateStudent(Long id, StudentRequestDTO requestDTO) {
+    public StudentResponseDTO updateStudent(Long id, StudentUpdateDTO requestDTO) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
         log.info("Updating student ID: {} in PostgreSQL", id);
 
-        student.setFirstName(requestDTO.firstName());
-        student.setLastName(requestDTO.lastName());
-        student.setEmail(requestDTO.email());
-        student.setAge(requestDTO.age());
+        student.setFirstName(requestDTO.getFirstName());
+        student.setLastName(requestDTO.getLastName());
+        student.setEmail(requestDTO.getEmail());
+        student.setAge(requestDTO.getAge());
 
         Student updatedStudent = studentRepository.save(student);
 
@@ -98,10 +100,11 @@ public class StudentServiceImpl implements StudentService {
     public void deleteStudent(Long id) {
         log.info("Deleting student ID: {} from PostgreSQL", id);
 
-        if (!studentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Student not found with id: " + id);
-        }
-        studentRepository.deleteById(id);
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
+
+        student.setStatus(StudentStatus.INACTIVE);
+        studentRepository.save(student);
 
         log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
     }
@@ -126,6 +129,24 @@ public class StudentServiceImpl implements StudentService {
                 enrollments.stream().map(EnrollmentMapper::toProgressDto).toList()
         );
 
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "students", key = "#id")
+    public StudentResponseDTO changeStatus(Long id, StudentStatus newStatus) {
+        Student student = studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
+
+        if (student.getStatus() == StudentStatus.INACTIVE) {
+            throw new IllegalStateException("Cannot change status for an INACTIVE (deleted) student with ID: " + id);
+        }
+
+        log.info("Toggling status for student ID: {} from {} to {}", id, student.getStatus(), newStatus);
+        student.setStatus(newStatus);
+
+        Student updatedStudent = studentRepository.save(student);
+        return StudentMapper.toResponseDto(updatedStudent);
     }
 
     private int countByStatus(List<Enrollment> enrollments, EnrollmentStatus status) {

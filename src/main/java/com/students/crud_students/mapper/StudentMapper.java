@@ -3,6 +3,7 @@ package com.students.crud_students.mapper;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.model.Student;
+import com.students.crud_students.model.StudentStatus;
 
 public class StudentMapper {
 
@@ -12,7 +13,8 @@ public class StudentMapper {
                 student.getFirstName(),
                 student.getLastName(),
                 student.getEmail(),
-                student.getAge()
+                student.getAge(),
+                student.getStatus()
         );
     }
 
@@ -22,6 +24,8 @@ public class StudentMapper {
         student.setLastName(dto.lastName());
         student.setEmail(dto.email());
         student.setAge(dto.age());
+        student.setStatus(StudentStatus.ACTIVE);
+
         return student;
     }
 }

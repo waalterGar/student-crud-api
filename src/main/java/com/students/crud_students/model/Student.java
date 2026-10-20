@@ -1,9 +1,13 @@
 package com.students.crud_students.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "students")
+@Data
 public class Student {
 
     @Id
@@ -19,59 +23,21 @@ public class Student {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false)
     private Integer age;
 
-    // Default constructor required by JPA
-    public Student() {
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private StudentStatus status = StudentStatus.ACTIVE;
 
-    // All arguments constructor
-    public Student(Long id, String firstName, String lastName, String email, Integer age) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.age = age;
-    }
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = StudentStatus.ACTIVE;
+        }
     }
 }

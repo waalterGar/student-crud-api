@@ -3,6 +3,8 @@ package com.students.crud_students.controller;
 import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
+import com.students.crud_students.dto.StudentUpdateDTO;
+import com.students.crud_students.model.StudentStatus;
 import com.students.crud_students.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -52,7 +54,7 @@ public class StudentController {
     @PutMapping("/{id}")
     public ResponseEntity<StudentResponseDTO> updateStudent(
             @PathVariable Long id,
-            @Valid @RequestBody StudentRequestDTO requestDTO) {
+            @Valid @RequestBody StudentUpdateDTO requestDTO) {
         return ResponseEntity.ok(studentService.updateStudent(id, requestDTO));
     }
 
@@ -63,6 +65,16 @@ public class StudentController {
     public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {
         studentService.deleteStudent(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/suspend")
+    public ResponseEntity<StudentResponseDTO> suspendStudent(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.changeStatus(id, StudentStatus.SUSPENDED));
+    }
+
+    @PatchMapping("/{id}/reactivate")
+    public ResponseEntity<StudentResponseDTO> reactivateStudent(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.changeStatus(id, StudentStatus.ACTIVE));
     }
 
     @GetMapping("/{id}/academic-history")
