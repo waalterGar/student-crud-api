@@ -1,5 +1,6 @@
 package com.students.crud_students.controller;
 
+import com.students.crud_students.dto.NotificationBatchResponseDTO;
 import com.students.crud_students.dto.NotificationResponseDTO;
 import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.service.NotificationService;
@@ -27,5 +28,10 @@ public class NotificationController {
     @PatchMapping("/notifications/{id}/read")
     public ResponseEntity<NotificationResponseDTO> markAsRead(@PathVariable Long id) {
         return ResponseEntity.ok(notificationService.markAsRead(id));
+    }
+
+    @PatchMapping("/notifications/{id}/read-all")
+    public ResponseEntity<NotificationBatchResponseDTO> markAllAsRead(@PathVariable Long id) {
+        return ResponseEntity.ok(notificationService.markAllAsRead(id));
     }
 }

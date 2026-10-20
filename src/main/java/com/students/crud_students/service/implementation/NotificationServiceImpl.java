@@ -1,5 +1,6 @@
 package com.students.crud_students.service.implementation;
 
+import com.students.crud_students.dto.NotificationBatchResponseDTO;
 import com.students.crud_students.dto.NotificationResponseDTO;
 import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.mapper.NotificationMapper;
@@ -55,5 +56,20 @@ public class NotificationServiceImpl implements NotificationService {
         log.info("Notification ID: {} updated. Cache evicted for student_notifications", notificationId);
 
         return NotificationMapper.toResponseDto(updatedNotification);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "notifications", key = "#studentId")
+    public NotificationBatchResponseDTO markAllAsRead(Long studentId) {
+        log.info("Marking all unread notifications as read for student ID: {}", studentId);
+        int updatedCount = notificationRepository.markAllAsReadByStudentId(studentId);
+        log.info("Updated {} notifications to read status for student ID: {}", updatedCount, studentId);
+
+        return new NotificationBatchResponseDTO(
+                studentId,
+                updatedCount,
+                String.format("Successfully marked %d notifications as read", updatedCount)
+        );
     }
 }
