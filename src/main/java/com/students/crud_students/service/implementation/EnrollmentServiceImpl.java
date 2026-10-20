@@ -45,6 +45,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Student student = studentRepository.findById(dto.studentId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + dto.studentId()));
 
+        if (student.getStatus() != StudentStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot enroll student with ID " + dto.studentId()
+                    + " because current status is: " + student.getStatus());
+        }
+
         Course course = courseRepository.findById(dto.courseId())
                 .orElseThrow(() -> new IllegalArgumentException("Course not found with id: " + dto.courseId()));
 
