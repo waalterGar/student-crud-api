@@ -1,11 +1,13 @@
 package com.students.crud_students.listener;
 
+import com.students.crud_students.event.CourseCancelledEvent;
 import com.students.crud_students.event.StudentEnrolledEvent;
 import com.students.crud_students.event.StudentGradedEvent;
 import com.students.crud_students.event.StudentUnenrolledEvent;
 import com.students.crud_students.model.Notification;
 import com.students.crud_students.model.NotificationType;
 import com.students.crud_students.model.Student;
+import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.NotificationRepository;
 import com.students.crud_students.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class EnrollmentEventListener {
     private final StringRedisTemplate redisTemplate;
     private final NotificationRepository notificationRepository;
     private final StudentRepository studentRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
     // Prefijos diferenciados para evitar colisiones en Redis
     private static final String ENROLLMENT_IDEMPOTENCY_PREFIX = "processed_enrollment_event:";
@@ -141,5 +144,16 @@ public class EnrollmentEventListener {
         notificationRepository.save(notification);
 
         log.info("Grading notification successfully saved in DB and cache evicted for student ID: {}", event.studentId());
+    }
+
+    @RabbitHandler
+    @Transactional
+    public void handleCourseCancelled(CourseCancelledEvent event) {
+        log.info("Received CourseCancelledEvent for course ID: {}. Processing cascade enrollment cancellation.", event.courseId());
+
+        // Ejecuta la actualización atómica en la base de datos
+        int cancelledCount = enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(event.courseId());
+
+        log.info("Successfully cancelled {} active enrollments for course ID: {}", cancelledCount, event.courseId());
     }
 }

@@ -2,25 +2,32 @@ package com.students.crud_students.service.implementation;
 
 import com.students.crud_students.dto.CreateCourseDTO;
 import com.students.crud_students.dto.CourseResponseDTO;
+import com.students.crud_students.event.CourseCancelledEvent;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
+import com.students.crud_students.model.Enrollment;
+import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.CourseRepository;
+import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.service.CourseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CourseServiceImpl implements CourseService {
-
     private final CourseRepository courseRepository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Override
     @Transactional
@@ -87,6 +94,16 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new IllegalArgumentException("Course not found with id: " + id));
 
         course.setStatus(status);
+
+        if (status == CourseStatus.CANCELLED) {
+            log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
+            course.setCurrentEnrolled(0);
+
+            notificationEventPublisher.publishCourseCancelledEvent(
+                    new CourseCancelledEvent(course.getId(), course.getCode(), course.getTitle(), LocalDateTime.now())
+            );
+        }
+
         Course updatedCourse = courseRepository.save(course);
         return CourseMapper.toResponseDto(updatedCourse);
     }

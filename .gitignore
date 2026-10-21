@@ -32,3 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 *.stackdump
+PROJECT_CONTEXT.md
