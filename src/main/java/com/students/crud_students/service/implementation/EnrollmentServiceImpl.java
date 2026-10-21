@@ -147,8 +147,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + enrollmentId));
 
-        if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
-            throw new IllegalStateException("Cannot assign grade to a CANCELLED enrollment");
+        if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot assign grade to an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
         enrollment.setGrade(dto.grade());
@@ -191,8 +191,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + enrollmentId));
 
-        if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
-            throw new IllegalStateException("Enrollment is already CANCELLED");
+        if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
+            throw new IllegalStateException("Cannot cancel an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
         enrollment.setStatus(EnrollmentStatus.CANCELLED);
