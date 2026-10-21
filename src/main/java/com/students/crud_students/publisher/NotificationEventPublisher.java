@@ -1,9 +1,6 @@
 package com.students.crud_students.publisher;
 
-import com.students.crud_students.event.StudentCreatedEvent;
-import com.students.crud_students.event.StudentEnrolledEvent;
-import com.students.crud_students.event.StudentGradedEvent;
-import com.students.crud_students.event.StudentUnenrolledEvent;
+import com.students.crud_students.event.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -34,6 +31,9 @@ public class NotificationEventPublisher {
 
     @Value("${app.rabbitmq.grading-routing-key:student.enrollment.graded}")
     private String gradingRoutingKey;
+
+    @Value("${app.rabbitmq.course-cancelled-routing-key:student.course.cancelled}")
+    private String courseCancelledRoutingKey;
 
     public void publishStudentCreatedEvent(Long studentId, String firstName, String lastName, String email) {
         StudentCreatedEvent event = new StudentCreatedEvent(
@@ -70,5 +70,10 @@ public class NotificationEventPublisher {
                 event.enrollmentId(), exchangeName, studentUnenrolledRoutingKey);
 
         rabbitTemplate.convertAndSend(exchangeName, studentUnenrolledRoutingKey, event);
+    }
+
+    public void publishCourseCancelledEvent(CourseCancelledEvent event) {
+        log.info("Publishing CourseCancelledEvent for course ID: {} to exchange: {}", event.courseId(), exchangeName);
+        rabbitTemplate.convertAndSend(exchangeName, courseCancelledRoutingKey, event);
     }
 }

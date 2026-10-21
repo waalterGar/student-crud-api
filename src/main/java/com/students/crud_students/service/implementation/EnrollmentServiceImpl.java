@@ -14,6 +14,7 @@ import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EnrollmentServiceImpl implements EnrollmentService {
 
     private final EnrollmentRepository enrollmentRepository;
@@ -80,10 +82,15 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             enrollmentToSave = existingEnrollment;
 
         } else {
-            // Si no existe registro previo, se crea una entidad nueva
             enrollmentToSave = EnrollmentMapper.toEntity(student, course);
         }
         course.setCurrentEnrolled(course.getCurrentEnrolled() + 1);
+
+        if (course.getCurrentEnrolled().equals(course.getMaxCapacity())) {
+            log.info("Course ID {} reached max capacity. Transitioning status to CLOSED.", course.getId());
+            course.setStatus(CourseStatus.CLOSED);
+        }
+
         courseRepository.save(course);
 
         Enrollment savedEnrollment = enrollmentRepository.save(enrollmentToSave);
@@ -154,7 +161,6 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
 
-        //publicar evento asíncrono a través de NotificationEventPublisher
         StudentGradedEvent studentGradedEvent = new StudentGradedEvent(
                 updatedEnrollment.getId(),
                 updatedEnrollment.getStudent().getId(),
@@ -194,12 +200,18 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Course course = enrollment.getCourse();
         if (course.getCurrentEnrolled() > 0) {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
-            courseRepository.save(course);
         }
+
+        if (course.getStatus() == CourseStatus.CLOSED && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+            log.info("Seat freed up in Course ID {}. Transitioning status back to ACTIVE.", course.getId());
+            course.setStatus(CourseStatus.ACTIVE);
+        }
+
+        courseRepository.save(course);
+
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
         Student student = updatedEnrollment.getStudent();
 
-        // Publicar evento asíncrono a través de NotificationEventPublisher
         StudentUnenrolledEvent event = new StudentUnenrolledEvent(
                 updatedEnrollment.getId(),
                 student.getId(),
