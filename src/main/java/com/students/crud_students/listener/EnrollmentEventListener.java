@@ -1,19 +1,20 @@
 package com.students.crud_students.listener;
 
-import com.students.crud_students.event.CourseCancelledEvent;
-import com.students.crud_students.event.StudentEnrolledEvent;
-import com.students.crud_students.event.StudentGradedEvent;
-import com.students.crud_students.event.StudentUnenrolledEvent;
-import com.students.crud_students.model.Notification;
-import com.students.crud_students.model.NotificationType;
-import com.students.crud_students.model.Student;
+import com.students.crud_students.event.*;
+import com.students.crud_students.exception.ResourceNotFoundException;
+import com.students.crud_students.model.*;
+import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.NotificationRepository;
 import com.students.crud_students.repository.StudentRepository;
+import com.students.crud_students.service.CourseService;
+import com.students.crud_students.service.EnrollmentService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -32,6 +35,8 @@ public class EnrollmentEventListener {
     private final NotificationRepository notificationRepository;
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EnrollmentService enrollmentService;
+    private final CourseService courseService;
 
     // Prefijos diferenciados para evitar colisiones en Redis
     private static final String ENROLLMENT_IDEMPOTENCY_PREFIX = "processed_enrollment_event:";
@@ -155,5 +160,14 @@ public class EnrollmentEventListener {
         int cancelledCount = enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(event.courseId());
 
         log.info("Successfully cancelled {} active enrollments for course ID: {}", cancelledCount, event.courseId());
+    }
+
+    @RabbitHandler
+    public void handleStudentDeactivated(StudentDeactivatedEvent event) {
+        log.info("Received StudentDeactivatedEvent for student ID: {}", event.studentId());
+
+        Set<Long> affected = enrollmentService.cancelAllByStudent(event.studentId());
+
+        affected.forEach(courseService::evictCourse);
     }
 }

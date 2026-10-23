@@ -6,6 +6,7 @@ import com.students.crud_students.dto.UpdateGradeDTO;
 import com.students.crud_students.event.StudentEnrolledEvent;
 import com.students.crud_students.event.StudentGradedEvent;
 import com.students.crud_students.event.StudentUnenrolledEvent;
+import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.model.*;
 import com.students.crud_students.publisher.NotificationEventPublisher;
@@ -24,6 +25,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -225,5 +228,32 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         notificationEventPublisher.publishStudentUnenrolledEvent(event);
 
         return EnrollmentMapper.toResponseDto(updatedEnrollment);
+    }
+
+    @Transactional
+    @Override
+    public Set<Long> cancelAllByStudent(Long studentId) {
+        List<Enrollment> active = enrollmentRepository
+                .findByStudentIdAndStatus(studentId, EnrollmentStatus.ACTIVE);
+
+        Set<Long> courseIds = active.stream()
+                .map(e -> e.getCourse().getId())
+                .collect(Collectors.toSet());
+
+        active.forEach(e -> e.setStatus(EnrollmentStatus.CANCELLED));
+
+        for (Long courseId : courseIds) {
+            Course course = courseRepository.findById(courseId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+
+            if (course.getCurrentEnrolled() > 0) {
+                course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
+            }
+            if (course.getStatus() == CourseStatus.CLOSED
+                    && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+                course.setStatus(CourseStatus.ACTIVE);
+            }
+        }
+        return courseIds;
     }
 }

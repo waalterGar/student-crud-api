@@ -4,6 +4,7 @@ import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.dto.StudentUpdateDTO;
+import com.students.crud_students.event.StudentDeactivatedEvent;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.mapper.StudentMapper;
@@ -64,7 +65,6 @@ public class StudentServiceImpl implements StudentService {
         Student student = StudentMapper.toEntity(requestDTO);
         Student savedStudent = studentRepository.save(student);
 
-        // Publicación asíncrona del evento hacia RabbitMQ
         eventPublisher.publishStudentCreatedEvent(
                 savedStudent.getId(),
                 savedStudent.getFirstName(),
@@ -103,8 +103,11 @@ public class StudentServiceImpl implements StudentService {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
 
-        student.setStatus(StudentStatus.INACTIVE);
+        StudentStatus newStatus = StudentStatus.INACTIVE;
+        student.setStatus(newStatus);
         studentRepository.save(student);
+
+        eventPublisher.publishStudentDeactivatedEvent(new StudentDeactivatedEvent(student.getId(), newStatus));
 
         log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
     }
@@ -146,6 +149,13 @@ public class StudentServiceImpl implements StudentService {
         student.setStatus(newStatus);
 
         Student updatedStudent = studentRepository.save(student);
+
+        if (newStatus == StudentStatus.INACTIVE || newStatus == StudentStatus.SUSPENDED) {
+            eventPublisher.publishStudentDeactivatedEvent(
+                    new StudentDeactivatedEvent(student.getId(), newStatus)
+            );
+        }
+
         return StudentMapper.toResponseDto(updatedStudent);
     }
 

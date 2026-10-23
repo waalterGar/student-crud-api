@@ -6,10 +6,8 @@ import com.students.crud_students.event.CourseCancelledEvent;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
-import com.students.crud_students.model.Enrollment;
 import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.CourseRepository;
-import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -106,5 +104,11 @@ public class CourseServiceImpl implements CourseService {
 
         Course updatedCourse = courseRepository.save(course);
         return CourseMapper.toResponseDto(updatedCourse);
+    }
+
+    @Override
+    @CacheEvict(value = "course_detail", key = "#courseId")
+    public void evictCourse(Long courseId) {
+        log.info("Evicting course {}", courseId);
     }
 }
