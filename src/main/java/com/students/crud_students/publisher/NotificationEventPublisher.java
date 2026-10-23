@@ -35,6 +35,9 @@ public class NotificationEventPublisher {
     @Value("${app.rabbitmq.course-cancelled-routing-key:student.course.cancelled}")
     private String courseCancelledRoutingKey;
 
+    @Value("${app.rabbitmq.student-deactivated-routing-key:student.status.deactivated}")
+    private String studentDeactivatedRoutingKey;
+
     public void publishStudentCreatedEvent(Long studentId, String firstName, String lastName, String email) {
         StudentCreatedEvent event = new StudentCreatedEvent(
                 UUID.randomUUID().toString(),
@@ -75,5 +78,11 @@ public class NotificationEventPublisher {
     public void publishCourseCancelledEvent(CourseCancelledEvent event) {
         log.info("Publishing CourseCancelledEvent for course ID: {} to exchange: {}", event.courseId(), exchangeName);
         rabbitTemplate.convertAndSend(exchangeName, courseCancelledRoutingKey, event);
+    }
+
+    public void publishStudentDeactivatedEvent(StudentDeactivatedEvent event) {
+        log.info("Publishing StudentDeactivatedEvent for student ID: {} with routing key {}",
+                event.studentId(), studentDeactivatedRoutingKey);
+        rabbitTemplate.convertAndSend(exchangeName, studentDeactivatedRoutingKey, event);
     }
 }

@@ -40,6 +40,9 @@ public class RabbitMQConfig {
     @Value("${app.rabbitmq.course-cancelled-routing-key:student.course.cancelled}")
     private String courseCancelledRoutingKey;
 
+    @Value("${app.rabbitmq.student-deactivated-routing-key:student.status.deactivated}")
+    private String studentDeactivatedRoutingKey;
+
     public static final String DLX_NAME = "student.dlx";
     public static final String NOTIFICATION_DLQ_NAME = "student.notification.dlq";
     public static final String EMAIL_DLQ_NAME = "student.email.dlq";
@@ -177,6 +180,14 @@ public class RabbitMQConfig {
                 .bind(enrollmentQueue())
                 .to(studentExchange())
                 .with(courseCancelledRoutingKey);
+    }
+
+    @Bean
+    public Binding studentDeactivatedBinding(Queue enrollmentQueue, TopicExchange studentExchange) {
+        return BindingBuilder
+                .bind(enrollmentQueue)
+                .to(studentExchange)
+                .with(studentDeactivatedRoutingKey);
     }
 
     @Bean
