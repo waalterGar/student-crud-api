@@ -141,8 +141,16 @@ public class StudentServiceImpl implements StudentService {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
 
-        if (student.getStatus() == StudentStatus.INACTIVE) {
-            throw new IllegalStateException("Cannot change status for an INACTIVE (deleted) student with ID: " + id);
+        StudentStatus currentStatus = student.getStatus();
+
+        if (currentStatus == newStatus) {
+            return StudentMapper.toResponseDto(student);
+        }
+
+        if (currentStatus == StudentStatus.INACTIVE && newStatus != StudentStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "An INACTIVE student can only be reactivated to ACTIVE status. Current status is INACTIVE."
+            );
         }
 
         log.info("Toggling status for student ID: {} from {} to {}", id, student.getStatus(), newStatus);
