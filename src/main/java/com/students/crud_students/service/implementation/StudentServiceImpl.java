@@ -5,6 +5,8 @@ import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.dto.StudentUpdateDTO;
 import com.students.crud_students.event.StudentDeactivatedEvent;
+import com.students.crud_students.exception.DuplicateResourceException;
+import com.students.crud_students.exception.InvalidStateTransitionException;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.mapper.StudentMapper;
@@ -58,11 +60,15 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public StudentResponseDTO createStudent(StudentRequestDTO requestDTO) {
-        if (studentRepository.existsByEmail(requestDTO.email())) {
-            throw new IllegalArgumentException("Email already registered");
+        String normalizedEmail = requestDTO.email().trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (studentRepository.existsByEmail(normalizedEmail)) {
+            throw new DuplicateResourceException("Email already registered: " + normalizedEmail);
         }
 
         Student student = StudentMapper.toEntity(requestDTO);
+        student.setEmail(normalizedEmail);
+
         Student savedStudent = studentRepository.save(student);
 
         eventPublisher.publishStudentCreatedEvent(
@@ -81,12 +87,19 @@ public class StudentServiceImpl implements StudentService {
     public StudentResponseDTO updateStudent(Long id, StudentUpdateDTO requestDTO) {
         Student student = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
+
+        String normalizedEmail = requestDTO.email().trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (studentRepository.existsByEmailAndIdNot(normalizedEmail, id)) {
+            throw new DuplicateResourceException("Email already registered: " + normalizedEmail);
+        }
+
         log.info("Updating student ID: {} in PostgreSQL", id);
 
-        student.setFirstName(requestDTO.getFirstName());
-        student.setLastName(requestDTO.getLastName());
-        student.setEmail(requestDTO.getEmail());
-        student.setAge(requestDTO.getAge());
+        student.setFirstName(requestDTO.firstName());
+        student.setLastName(requestDTO.lastName());
+        student.setEmail(normalizedEmail);
+        student.setAge(requestDTO.age());
 
         Student updatedStudent = studentRepository.save(student);
 
@@ -148,7 +161,7 @@ public class StudentServiceImpl implements StudentService {
         }
 
         if (currentStatus == StudentStatus.INACTIVE && newStatus != StudentStatus.ACTIVE) {
-            throw new IllegalStateException(
+            throw new InvalidStateTransitionException(
                     "An INACTIVE student can only be reactivated to ACTIVE status. Current status is INACTIVE."
             );
         }
