@@ -1,31 +1,27 @@
 package com.students.crud_students.dto;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Size;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class StudentUpdateDTO {
+public record StudentUpdateDTO(
+        @NotBlank(message = "First name is required")
+        @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
+        String firstName,
 
-    @NotBlank(message = "First name is required")
-    private String firstName;
+        @NotBlank(message = "Last name is required")
+        @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
+        String lastName,
 
-    @NotBlank(message = "Last name is required")
-    private String lastName;
+        @NotBlank(message = "Email is required")
+        @Email(message = "Email should be valid")
+        String email,
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
-    private String email;
-
-    @NotNull(message = "Age is required")
-    @Min(value = 16, message = "Student must be at least 16 years old")
-    private Integer age;
-}
+        @NotNull(message = "Age is required")
+        @Min(value = 16, message = "Age must be at least 16")
+        @Max(value = 100, message = "Age cannot exceed 100")
+        Integer age
+) {}
