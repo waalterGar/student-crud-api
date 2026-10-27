@@ -114,23 +114,8 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     @CacheEvict(value = "students", key = "#id")
     public void deleteStudent(Long id) {
-        log.info("Deleting student ID: {} from PostgreSQL", id);
-
-        Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
-
-        StudentStatus newStatus = StudentStatus.INACTIVE;
-        student.setStatus(newStatus);
-        studentRepository.save(student);
-
-        eventPublisher.publishEvent(new StudentDeactivatedEvent(
-                java.util.UUID.randomUUID().toString(),
-                student.getId(),
-                StudentStatus.INACTIVE,
-                java.time.LocalDateTime.now()
-        ));
-
-        log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
+        log.info("Request received to soft-delete student ID: {}", id);
+        changeStatus(id, StudentStatus.INACTIVE);
     }
 
     @Override
