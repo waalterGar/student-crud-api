@@ -21,11 +21,9 @@ public class RedisConfig {
 
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        // 1. Configurar ObjectMapper con soporte para fechas Java 8
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
-        // 2. Activar la tipificación para que guarde "@class" como propiedad JSON (EVERYTHING)
         objectMapper.activateDefaultTyping(
                 BasicPolymorphicTypeValidator.builder()
                         .allowIfBaseType(Object.class)
@@ -34,7 +32,6 @@ public class RedisConfig {
                 com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY
         );
 
-        // 3. Crear serializador pasándole el ObjectMapper ajustado
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
@@ -45,6 +42,7 @@ public class RedisConfig {
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
+                .transactionAware()
                 .build();
     }
 }
