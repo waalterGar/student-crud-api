@@ -77,7 +77,7 @@ public class StudentController {
         return ResponseEntity.ok(studentService.updateStudent(id, requestDTO));
     }
 
-    @Operation(summary = "Soft-delete a student by ID", description = "Sets student status to INACTIVE")
+    @Operation(summary = "Soft delete student", description = "Performs a soft delete by setting student status to INACTIVE and triggering cascade enrollment cancellation")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Student soft-deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Student not found",
