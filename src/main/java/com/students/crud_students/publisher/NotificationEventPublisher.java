@@ -38,16 +38,7 @@ public class NotificationEventPublisher {
     @Value("${app.rabbitmq.student-deactivated-routing-key:student.status.deactivated}")
     private String studentDeactivatedRoutingKey;
 
-    public void publishStudentCreatedEvent(Long studentId, String firstName, String lastName, String email) {
-        StudentCreatedEvent event = new StudentCreatedEvent(
-                UUID.randomUUID().toString(),
-                studentId,
-                firstName,
-                lastName,
-                email,
-                LocalDateTime.now()
-        );
-
+    public void publishStudentCreatedEvent(StudentCreatedEvent event) {
         log.info("Publishing StudentCreatedEvent with ID {} to exchange {} using routing key {}",
                 event.eventId(), exchangeName, studentCreatedRoutingKey);
 
