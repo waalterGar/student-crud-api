@@ -233,6 +233,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional
     @Override
     public Set<Long> cancelAllByStudent(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));
+
+        if (student.getStatus() == StudentStatus.ACTIVE) {
+            log.warn("Skipping cascade cancellation for student ID: {}. Student is currently ACTIVE.", studentId);
+            return java.util.Collections.emptySet();
+        }
+
         List<Enrollment> active = enrollmentRepository
                 .findByStudentIdAndStatus(studentId, EnrollmentStatus.ACTIVE);
 

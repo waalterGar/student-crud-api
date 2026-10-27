@@ -4,6 +4,7 @@ import com.students.crud_students.dto.AcademicHistoryDTO;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.dto.StudentUpdateDTO;
+import com.students.crud_students.event.StudentCreatedEvent;
 import com.students.crud_students.event.StudentDeactivatedEvent;
 import com.students.crud_students.exception.DuplicateResourceException;
 import com.students.crud_students.exception.InvalidStateTransitionException;
@@ -14,7 +15,6 @@ import com.students.crud_students.model.Enrollment;
 import com.students.crud_students.model.EnrollmentStatus;
 import com.students.crud_students.model.Student;
 import com.students.crud_students.model.StudentStatus;
-import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
 import com.students.crud_students.service.StudentService;
@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +38,7 @@ public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final NotificationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,12 +72,14 @@ public class StudentServiceImpl implements StudentService {
 
         Student savedStudent = studentRepository.save(student);
 
-        eventPublisher.publishStudentCreatedEvent(
+        eventPublisher.publishEvent(new StudentCreatedEvent(
+                java.util.UUID.randomUUID().toString(),
                 savedStudent.getId(),
                 savedStudent.getFirstName(),
                 savedStudent.getLastName(),
-                savedStudent.getEmail()
-        );
+                savedStudent.getEmail(),
+                java.time.LocalDateTime.now()
+        ));
 
         return StudentMapper.toResponseDto(savedStudent);
     }
@@ -111,18 +114,8 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     @CacheEvict(value = "students", key = "#id")
     public void deleteStudent(Long id) {
-        log.info("Deleting student ID: {} from PostgreSQL", id);
-
-        Student student = studentRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
-
-        StudentStatus newStatus = StudentStatus.INACTIVE;
-        student.setStatus(newStatus);
-        studentRepository.save(student);
-
-        eventPublisher.publishStudentDeactivatedEvent(new StudentDeactivatedEvent(student.getId(), newStatus));
-
-        log.info("Student ID: {} deleted from DB. Cache evicted for key: students::{}", id, id);
+        log.info("Request received to soft-delete student ID: {}", id);
+        changeStatus(id, StudentStatus.INACTIVE);
     }
 
     @Override
@@ -172,9 +165,12 @@ public class StudentServiceImpl implements StudentService {
         Student updatedStudent = studentRepository.save(student);
 
         if (newStatus == StudentStatus.INACTIVE || newStatus == StudentStatus.SUSPENDED) {
-            eventPublisher.publishStudentDeactivatedEvent(
-                    new StudentDeactivatedEvent(student.getId(), newStatus)
-            );
+            eventPublisher.publishEvent(new StudentDeactivatedEvent(
+                    java.util.UUID.randomUUID().toString(),
+                    student.getId(),
+                    newStatus,
+                    java.time.LocalDateTime.now()
+            ));
         }
 
         return StudentMapper.toResponseDto(updatedStudent);
