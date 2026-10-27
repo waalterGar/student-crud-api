@@ -114,11 +114,12 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     @CacheEvict(value = "students", key = "#id")
     public void deleteStudent(Long id) {
-        log.info("Request received to soft-delete student ID: {}", id);
+        log.info("Soft-deleting student with ID: {}", id);
         changeStatus(id, StudentStatus.INACTIVE);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AcademicHistoryDTO getStudentAcademicHistory(Long studentId) {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));
@@ -140,6 +141,14 @@ public class StudentServiceImpl implements StudentService {
 
     }
 
+    /**
+     * Transition matrix:
+     * - ACTIVE <-> SUSPENDED (Allowed)
+     * - ACTIVE -> INACTIVE (Allowed - Soft delete)
+     * - INACTIVE -> ACTIVE (Allowed - Reactivation)
+     * - INACTIVE -> SUSPENDED (Forbidden - Throws IllegalStateException)
+     * - Same status -> No-op
+     */
     @Override
     @Transactional
     @CacheEvict(value = "students", key = "#id")
