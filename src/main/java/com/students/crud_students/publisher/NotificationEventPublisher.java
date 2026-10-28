@@ -61,9 +61,9 @@ public class NotificationEventPublisher {
 
     public void publishStudentGradedEvent(StudentGradedEvent event) {
         log.info("Publishing StudentGradedEvent for enrollmentId {} to exchange {} using routing key {}",
-                event.enrollmentId(), exchangeName, studentUnenrolledRoutingKey);
+                event.enrollmentId(), exchangeName, gradingRoutingKey);
 
-        rabbitTemplate.convertAndSend(exchangeName, studentUnenrolledRoutingKey, event);
+        rabbitTemplate.convertAndSend(exchangeName, gradingRoutingKey, event);
     }
 
     public void publishCourseCancelledEvent(CourseCancelledEvent event) {
