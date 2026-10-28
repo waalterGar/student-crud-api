@@ -12,7 +12,6 @@ import com.students.crud_students.exception.InvalidStateTransitionException;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.model.*;
-import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.repository.EnrollmentRepository;
 import com.students.crud_students.repository.StudentRepository;
@@ -21,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +39,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
-    private final NotificationEventPublisher notificationEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -112,7 +112,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 savedEnrollment.getEnrolledAt()
         );
 
-        notificationEventPublisher.publishStudentEnrolledEvent(event);
+        eventPublisher.publishEvent(event);
 
         return EnrollmentMapper.toResponseDto(savedEnrollment);
     }
@@ -179,8 +179,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 updatedEnrollment.getStatus(),
                 updatedEnrollment.getEnrolledAt()
         );
-        notificationEventPublisher.publishStudentGradedEvent(studentGradedEvent);
-
+        eventPublisher.publishEvent(studentGradedEvent);
 
         return EnrollmentMapper.toResponseDto(updatedEnrollment);
     }
@@ -228,7 +227,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 course.getTitle(),
                 updatedEnrollment.getEnrolledAt()
         );
-        notificationEventPublisher.publishStudentUnenrolledEvent(event);
+        eventPublisher.publishEvent(event);
 
         return EnrollmentMapper.toResponseDto(updatedEnrollment);
     }
