@@ -3,6 +3,8 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.CreateCourseDTO;
 import com.students.crud_students.dto.CourseResponseDTO;
 import com.students.crud_students.event.CourseCancelledEvent;
+import com.students.crud_students.exception.DuplicateResourceException;
+import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
@@ -35,7 +37,7 @@ public class CourseServiceImpl implements CourseService {
     })
     public CourseResponseDTO createCourse(CreateCourseDTO dto) {
         if (courseRepository.existsByCode(dto.code())) {
-            throw new IllegalArgumentException("Course code already exists: " + dto.code());
+            throw new DuplicateResourceException("Course with code " + dto.code() + " already exists");
         }
 
         Course course = CourseMapper.toEntity(dto);
@@ -48,7 +50,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(value = "course_detail", key = "#id")
     public CourseResponseDTO getCourseById(Long id) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Course not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
         return CourseMapper.toResponseDto(course);
     }
 
@@ -57,7 +59,7 @@ public class CourseServiceImpl implements CourseService {
     @Cacheable(value = "course_detail_code", key = "#code")
     public CourseResponseDTO getCourseByCode(String code) {
         Course course = courseRepository.findByCode(code)
-                .orElseThrow(() -> new IllegalArgumentException("Course not found with code: " + code));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with code: " + code));
         return CourseMapper.toResponseDto(course);
     }
 
@@ -89,7 +91,7 @@ public class CourseServiceImpl implements CourseService {
     })
     public CourseResponseDTO updateCourseStatus(Long id, CourseStatus status) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Course not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
 
         course.setStatus(status);
 

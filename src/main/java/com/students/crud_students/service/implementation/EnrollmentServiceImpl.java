@@ -6,6 +6,9 @@ import com.students.crud_students.dto.UpdateGradeDTO;
 import com.students.crud_students.event.StudentEnrolledEvent;
 import com.students.crud_students.event.StudentGradedEvent;
 import com.students.crud_students.event.StudentUnenrolledEvent;
+import com.students.crud_students.exception.BusinessRuleViolationException;
+import com.students.crud_students.exception.DuplicateResourceException;
+import com.students.crud_students.exception.InvalidStateTransitionException;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.EnrollmentMapper;
 import com.students.crud_students.model.*;
@@ -48,22 +51,22 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     })
     public EnrollmentResponseDTO enrollStudent(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findById(dto.studentId())
-                .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + dto.studentId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + dto.studentId()));
 
         if (student.getStatus() != StudentStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot enroll student with ID " + dto.studentId()
-                    + " because current status is: " + student.getStatus());
+            throw new InvalidStateTransitionException("Student is not active. " +
+                    "Current status: " + student.getStatus());
         }
 
         Course course = courseRepository.findById(dto.courseId())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found with id: " + dto.courseId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + dto.courseId()));
 
         if (course.getStatus() != CourseStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot enroll in a course that is not ACTIVE");
+            throw new InvalidStateTransitionException("Course is not active. Current status: " + course.getStatus());
         }
 
         if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
-            throw new IllegalStateException("Course has reached its maximum capacity (" + course.getMaxCapacity() + ")");
+            throw new BusinessRuleViolationException("Course is full. Capacity: " + course.getMaxCapacity());
         }
 
         Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByStudentIdAndCourseId(
@@ -77,7 +80,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             Enrollment existingEnrollment = existingEnrollmentOpt.get();
 
             if (existingEnrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                throw new IllegalStateException("Student already has an ACTIVE enrollment in this course");
+                throw new DuplicateResourceException("Student is already actively enrolled in this course");
             }
             existingEnrollment.setStatus(EnrollmentStatus.ACTIVE);
             existingEnrollment.setGrade(null);
@@ -118,7 +121,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional(readOnly = true)
     public EnrollmentResponseDTO getEnrollmentById(Long id) {
         Enrollment enrollment = enrollmentRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found with id: " + id));
         return EnrollmentMapper.toResponseDto(enrollment);
     }
 
@@ -126,7 +129,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional(readOnly = true)
     public List<EnrollmentResponseDTO> getEnrollmentsByStudentId(Long studentId) {
         if (!studentRepository.existsById(studentId)) {
-            throw new IllegalArgumentException("Student not found with id: " + studentId);
+            throw new ResourceNotFoundException("Student not found with id: " + studentId);
         }
         return enrollmentRepository.findByStudentId(studentId).stream()
                 .map(EnrollmentMapper::toResponseDto)
@@ -137,7 +140,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional(readOnly = true)
     public List<EnrollmentResponseDTO> getEnrollmentsByCourseId(Long courseId) {
         if (!courseRepository.existsById(courseId)) {
-            throw new IllegalArgumentException("Course not found with id: " + courseId);
+            throw new ResourceNotFoundException("Course not found with id: " + courseId);
         }
         return enrollmentRepository.findByCourseId(courseId).stream()
                 .map(EnrollmentMapper::toResponseDto)
@@ -148,10 +151,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional
     public EnrollmentResponseDTO updateGrade(Long enrollmentId, UpdateGradeDTO dto) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + enrollmentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found with id: " + enrollmentId));
 
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot assign grade to an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
+            throw new InvalidStateTransitionException("Cannot assign grade to an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
         enrollment.setGrade(dto.grade());
@@ -192,10 +195,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     })
     public EnrollmentResponseDTO cancelEnrollment(Long enrollmentId) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new IllegalArgumentException("Enrollment not found with id: " + enrollmentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found with id: " + enrollmentId));
 
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVE) {
-            throw new IllegalStateException("Cannot cancel an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
+            throw new InvalidStateTransitionException("Cannot cancel an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
         enrollment.setStatus(EnrollmentStatus.CANCELLED);

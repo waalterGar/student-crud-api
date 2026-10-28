@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,19 @@ public class GlobalExceptionHandler {
                 "Database constraint violation occurred. Please check unique or relational constraints."
         );
         return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ResponseEntity<ApiError> handleBusinessRuleViolationException(BusinessRuleViolationException ex) {
+        log.error("Business rule violation exception: {}", ex.getMessage());
+        ApiError apiError = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Business Rule Violation",
+                ex.getMessage(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(apiError);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
