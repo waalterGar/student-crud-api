@@ -17,13 +17,23 @@ public class DomainEventRelay {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStudentCreated(StudentCreatedEvent event) {
         log.info("DB transaction committed. Relaying StudentCreatedEvent for student ID: {} to RabbitMQ", event.studentId());
-        notificationEventPublisher.publishStudentCreatedEvent(event);
+        try {
+            notificationEventPublisher.publishStudentCreatedEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to publish StudentCreatedEvent to RabbitMQ for student ID: {}. Error: {}",
+                    event.studentId(), e.getMessage(), e);
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleStudentDeactivated(StudentDeactivatedEvent event) {
         log.info("DB transaction committed. Relaying StudentDeactivatedEvent for student ID: {} to RabbitMQ", event.studentId());
-        notificationEventPublisher.publishStudentDeactivatedEvent(event);
+        try {
+            notificationEventPublisher.publishStudentDeactivatedEvent(event);
+        } catch (Exception e) {
+            log.error("Failed to publish StudentDeactivatedEvent to RabbitMQ for student ID: {}. Error: {}",
+                    event.studentId(), e.getMessage(), e);
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
