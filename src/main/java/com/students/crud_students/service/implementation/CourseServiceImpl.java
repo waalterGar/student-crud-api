@@ -8,7 +8,6 @@ import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
-import com.students.crud_students.publisher.NotificationEventPublisher;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.service.CourseService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +27,7 @@ import java.util.List;
 @Slf4j
 public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
-    private final NotificationEventPublisher notificationEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -99,7 +99,7 @@ public class CourseServiceImpl implements CourseService {
             log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
             course.setCurrentEnrolled(0);
 
-            notificationEventPublisher.publishCourseCancelledEvent(
+            eventPublisher.publishEvent(
                     new CourseCancelledEvent(course.getId(), course.getCode(), course.getTitle(), LocalDateTime.now())
             );
         }
