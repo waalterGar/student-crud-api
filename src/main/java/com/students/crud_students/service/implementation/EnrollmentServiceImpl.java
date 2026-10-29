@@ -50,7 +50,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
     public EnrollmentResponseDTO enrollStudent(EnrollmentRequestDTO dto) {
-        Student student = studentRepository.findById(dto.studentId())
+        Student student = studentRepository.findByIdForShare(dto.studentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + dto.studentId()));
 
         if (student.getStatus() != StudentStatus.ACTIVE) {
