@@ -109,7 +109,12 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
-    @CacheEvict(value = "course_detail", key = "#courseId")
+    @Caching(evict = {
+            @CacheEvict(value = "course_detail", key = "#courseId"),
+            @CacheEvict(value = "course_detail_code", allEntries = true),
+            @CacheEvict(value = "courses", allEntries = true),
+            @CacheEvict(value = "courses_by_status", allEntries = true)
+    })
     public void evictCourse(Long courseId) {
         log.info("Evicting course {}", courseId);
     }

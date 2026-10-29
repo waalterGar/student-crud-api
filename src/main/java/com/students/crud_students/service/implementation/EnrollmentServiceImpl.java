@@ -178,11 +178,13 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             enrollment.setStatus(EnrollmentStatus.FAILED);
         }
 
+        int previousEnrolled = course.getCurrentEnrolled();
+
         if (course.getCurrentEnrolled() > 0) {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
         }
 
-        if (course.getStatus() == CourseStatus.CLOSED && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
             log.info("Seat freed up in Course ID {} after grading. Transitioning status back to ACTIVE.", course.getId());
             course.setStatus(CourseStatus.ACTIVE);
         }
@@ -228,12 +230,14 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + enrollment.getCourse().getId()));
 
         enrollment.setStatus(EnrollmentStatus.CANCELLED);
-        
+
+        int previousEnrolled = course.getCurrentEnrolled();
+
         if (course.getCurrentEnrolled() > 0) {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
         }
 
-        if (course.getStatus() == CourseStatus.CLOSED && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
             log.info("Seat freed up in Course ID {}. Transitioning status back to ACTIVE.", course.getId());
             course.setStatus(CourseStatus.ACTIVE);
         }
@@ -282,11 +286,13 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             Course course = courseRepository.findByIdForUpdate(courseId)
                     .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
 
+            int previousEnrolled = course.getCurrentEnrolled();
+
             if (course.getCurrentEnrolled() > 0) {
                 course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
             }
-            if (course.getStatus() == CourseStatus.CLOSED
-                    && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+
+            if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
                 course.setStatus(CourseStatus.ACTIVE);
             }
             courseRepository.save(course);
