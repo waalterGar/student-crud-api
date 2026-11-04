@@ -50,7 +50,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
     public EnrollmentResponseDTO enrollStudent(EnrollmentRequestDTO dto) {
-        Student student = studentRepository.findById(dto.studentId())
+        Student student = studentRepository.findByIdForShare(dto.studentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + dto.studentId()));
 
         if (student.getStatus() != StudentStatus.ACTIVE) {
@@ -58,7 +58,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                     "Current status: " + student.getStatus());
         }
 
-        Course course = courseRepository.findById(dto.courseId())
+        Course course = courseRepository.findByIdForUpdate(dto.courseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + dto.courseId()));
 
         if (course.getStatus() != CourseStatus.ACTIVE) {
@@ -82,6 +82,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             if (existingEnrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                 throw new DuplicateResourceException("Student is already actively enrolled in this course");
             }
+
+            if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
+                throw new InvalidStateTransitionException("Cannot re-enroll student. Course ID " + dto.courseId() + " has reached max capacity (" + course.getMaxCapacity() + ")");
+            }
+
             existingEnrollment.setStatus(EnrollmentStatus.ACTIVE);
             existingEnrollment.setGrade(null);
             existingEnrollment.setEnrolledAt(LocalDateTime.now());
@@ -149,6 +154,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "course_detail", key = "#result.courseId"),
+            @CacheEvict(value = "course_detail_code", allEntries = true),
+            @CacheEvict(value = "courses", allEntries = true),
+            @CacheEvict(value = "courses_by_status", allEntries = true)
+    })
     public EnrollmentResponseDTO updateGrade(Long enrollmentId, UpdateGradeDTO dto) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found with id: " + enrollmentId));
@@ -157,16 +168,31 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new InvalidStateTransitionException("Cannot assign grade to an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
-        enrollment.setGrade(dto.grade());
+        Course course = courseRepository.findByIdForUpdate(enrollment.getCourse().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + enrollment.getCourse().getId()));
 
+        enrollment.setGrade(dto.grade());
         if (dto.grade().compareTo(new BigDecimal("5.00")) >= 0) {
             enrollment.setStatus(EnrollmentStatus.COMPLETED);
         } else {
             enrollment.setStatus(EnrollmentStatus.FAILED);
         }
 
+        int previousEnrolled = course.getCurrentEnrolled();
+
+        if (course.getCurrentEnrolled() > 0) {
+            course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
+        }
+
+        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
+            log.info("Seat freed up in Course ID {} after grading. Transitioning status back to ACTIVE.", course.getId());
+            course.setStatus(CourseStatus.ACTIVE);
+        }
+
+        courseRepository.save(course);
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
 
+        // 5. Publicar evento
         StudentGradedEvent studentGradedEvent = new StudentGradedEvent(
                 updatedEnrollment.getId(),
                 updatedEnrollment.getStudent().getId(),
@@ -200,23 +226,27 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new InvalidStateTransitionException("Cannot cancel an enrollment that is not ACTIVE. Current status: " + enrollment.getStatus());
         }
 
+        Course course = courseRepository.findByIdForUpdate(enrollment.getCourse().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + enrollment.getCourse().getId()));
+
         enrollment.setStatus(EnrollmentStatus.CANCELLED);
 
-        Course course = enrollment.getCourse();
+        int previousEnrolled = course.getCurrentEnrolled();
+
         if (course.getCurrentEnrolled() > 0) {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
         }
 
-        if (course.getStatus() == CourseStatus.CLOSED && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
             log.info("Seat freed up in Course ID {}. Transitioning status back to ACTIVE.", course.getId());
             course.setStatus(CourseStatus.ACTIVE);
         }
 
         courseRepository.save(course);
-
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
-        Student student = updatedEnrollment.getStudent();
 
+        // 5. Publicación de evento
+        Student student = updatedEnrollment.getStudent();
         StudentUnenrolledEvent event = new StudentUnenrolledEvent(
                 updatedEnrollment.getId(),
                 student.getId(),
@@ -253,16 +283,19 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         active.forEach(e -> e.setStatus(EnrollmentStatus.CANCELLED));
 
         for (Long courseId : courseIds) {
-            Course course = courseRepository.findById(courseId)
+            Course course = courseRepository.findByIdForUpdate(courseId)
                     .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+
+            int previousEnrolled = course.getCurrentEnrolled();
 
             if (course.getCurrentEnrolled() > 0) {
                 course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
             }
-            if (course.getStatus() == CourseStatus.CLOSED
-                    && course.getCurrentEnrolled() < course.getMaxCapacity()) {
+
+            if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
                 course.setStatus(CourseStatus.ACTIVE);
             }
+            courseRepository.save(course);
         }
         return courseIds;
     }
