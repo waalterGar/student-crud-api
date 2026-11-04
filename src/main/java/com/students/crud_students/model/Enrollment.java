@@ -5,12 +5,15 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
-@Table(name = "enrollments", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_student_course", columnNames = {"student_id", "course_id"})
-})
-@Data
+@Table(name = "enrollments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Enrollment {
 
     @Id
@@ -43,5 +46,18 @@ public class Enrollment {
         if (this.status == null) {
             this.status = EnrollmentStatus.ACTIVE;
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Enrollment enrollment = (Enrollment) o;
+        return id != null && Objects.equals(id, enrollment.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

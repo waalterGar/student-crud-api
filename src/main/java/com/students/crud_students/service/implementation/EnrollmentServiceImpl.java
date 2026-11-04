@@ -69,32 +69,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             throw new BusinessRuleViolationException("Course is full. Capacity: " + course.getMaxCapacity());
         }
 
-        Optional<Enrollment> existingEnrollmentOpt = enrollmentRepository.findByStudentIdAndCourseId(
-                dto.studentId(),
-                dto.courseId()
-        );
-
-        Enrollment enrollmentToSave;
-
-        if (existingEnrollmentOpt.isPresent()) {
-            Enrollment existingEnrollment = existingEnrollmentOpt.get();
-
-            if (existingEnrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                throw new DuplicateResourceException("Student is already actively enrolled in this course");
-            }
-
-            if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
-                throw new InvalidStateTransitionException("Cannot re-enroll student. Course ID " + dto.courseId() + " has reached max capacity (" + course.getMaxCapacity() + ")");
-            }
-
-            existingEnrollment.setStatus(EnrollmentStatus.ACTIVE);
-            existingEnrollment.setGrade(null);
-            existingEnrollment.setEnrolledAt(LocalDateTime.now());
-            enrollmentToSave = existingEnrollment;
-
-        } else {
-            enrollmentToSave = EnrollmentMapper.toEntity(student, course);
+        if (enrollmentRepository.existsByStudentIdAndCourseIdAndStatus(dto.studentId(), dto.courseId(), EnrollmentStatus.ACTIVE)) {
+            throw new DuplicateResourceException("Student is already actively enrolled in this course");
         }
+
+        Enrollment  enrollmentToSave = EnrollmentMapper.toEntity(student, course);
+
         course.setCurrentEnrolled(course.getCurrentEnrolled() + 1);
 
         if (course.getCurrentEnrolled().equals(course.getMaxCapacity())) {
