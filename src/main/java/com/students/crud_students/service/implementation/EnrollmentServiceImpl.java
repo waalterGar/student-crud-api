@@ -23,6 +23,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.RoundingMode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -154,8 +155,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Course course = courseRepository.findByIdForUpdate(enrollment.getCourse().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + enrollment.getCourse().getId()));
 
-        enrollment.setGrade(dto.grade());
-        if (dto.grade().compareTo(new BigDecimal("5.00")) >= 0) {
+        BigDecimal normalizedGrade = dto.grade().setScale(2, RoundingMode.HALF_UP);
+        enrollment.setGrade(normalizedGrade);
+
+        if (normalizedGrade.compareTo(new BigDecimal("5.00")) >= 0) {
             enrollment.setStatus(EnrollmentStatus.COMPLETED);
         } else {
             enrollment.setStatus(EnrollmentStatus.FAILED);
