@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -87,6 +88,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         Enrollment savedEnrollment = enrollmentRepository.save(enrollmentToSave);
 
         StudentEnrolledEvent event = new StudentEnrolledEvent(
+                UUID.randomUUID().toString(),
                 savedEnrollment.getId(),
                 student.getId(),
                 student.getFirstName() + " " + student.getLastName(),
@@ -94,7 +96,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
                 course.getId(),
                 course.getCode(),
                 course.getTitle(),
-                savedEnrollment.getEnrolledAt()
+                savedEnrollment.getEnrolledAt(),
+                LocalDateTime.now()
         );
 
         eventPublisher.publishEvent(event);
@@ -171,19 +174,21 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         courseRepository.save(course);
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
+        Student student = updatedEnrollment.getStudent();
 
-        // 5. Publicar evento
         StudentGradedEvent studentGradedEvent = new StudentGradedEvent(
+                UUID.randomUUID().toString(),
                 updatedEnrollment.getId(),
-                updatedEnrollment.getStudent().getId(),
-                updatedEnrollment.getStudent().getFirstName() + " " + updatedEnrollment.getStudent().getLastName(),
-                updatedEnrollment.getStudent().getEmail(),
-                updatedEnrollment.getCourse().getId(),
-                updatedEnrollment.getCourse().getCode(),
-                updatedEnrollment.getCourse().getTitle(),
-                updatedEnrollment.getGrade(),
-                updatedEnrollment.getStatus(),
-                updatedEnrollment.getEnrolledAt()
+                student.getId(),
+                student.getFirstName() + " " + student.getLastName(),
+                student.getEmail(),
+                course.getId(),
+                course.getCode(),
+                course.getTitle(),
+                enrollment.getGrade(),
+                enrollment.getStatus(),
+                enrollment.getEnrolledAt(),
+                LocalDateTime.now()
         );
         eventPublisher.publishEvent(studentGradedEvent);
 
@@ -228,14 +233,16 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         // 5. Publicación de evento
         Student student = updatedEnrollment.getStudent();
         StudentUnenrolledEvent event = new StudentUnenrolledEvent(
-                updatedEnrollment.getId(),
+                UUID.randomUUID().toString(),
+                enrollment.getId(),
                 student.getId(),
                 student.getFirstName() + " " + student.getLastName(),
                 student.getEmail(),
                 course.getId(),
                 course.getCode(),
                 course.getTitle(),
-                updatedEnrollment.getEnrolledAt()
+                enrollment.getEnrolledAt(),
+                LocalDateTime.now()
         );
         eventPublisher.publishEvent(event);
 
