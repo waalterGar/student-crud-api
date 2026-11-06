@@ -233,8 +233,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         courseRepository.save(course);
         Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
 
-        // 5. Publicación de evento
         Student student = updatedEnrollment.getStudent();
+
         StudentUnenrolledEvent event = new StudentUnenrolledEvent(
                 UUID.randomUUID().toString(),
                 enrollment.getId(),
@@ -255,6 +255,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional
     @Override
     public Set<Long> cancelAllByStudent(Long studentId) {
+        log.info("Processing cascade cancellation of active enrollments for student ID: {}", studentId);
+
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + studentId));
 
@@ -263,30 +265,46 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             return java.util.Collections.emptySet();
         }
 
-        List<Enrollment> active = enrollmentRepository
+        List<Enrollment> activeEnrollments = enrollmentRepository
                 .findByStudentIdAndStatus(studentId, EnrollmentStatus.ACTIVE);
 
-        Set<Long> courseIds = active.stream()
-                .map(e -> e.getCourse().getId())
-                .collect(Collectors.toSet());
+        if (activeEnrollments.isEmpty()) {
+            log.info("No active enrollments found for student ID: {}", studentId);
+            return Set.of();
+        }
 
-        active.forEach(e -> e.setStatus(EnrollmentStatus.CANCELLED));
+        for (Enrollment enrollment : activeEnrollments) {
+            enrollment.setStatus(EnrollmentStatus.CANCELLED);
+        }
+        enrollmentRepository.saveAll(activeEnrollments);
 
-        for (Long courseId : courseIds) {
+        List<Long> sortedCourseIds = activeEnrollments.stream()
+                .map(enrollment -> enrollment.getCourse().getId())
+                .distinct()
+                .sorted()
+                .toList();
+
+        for (Long courseId : sortedCourseIds) {
             Course course = courseRepository.findByIdForUpdate(courseId)
                     .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
 
             int previousEnrolled = course.getCurrentEnrolled();
 
-            if (course.getCurrentEnrolled() > 0) {
-                course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
-            }
+            long cancelledForThisCourse = activeEnrollments.stream()
+                    .filter(e -> e.getCourse().getId().equals(courseId))
+                    .count();
 
-            if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
+            int newEnrolled = Math.max(0, previousEnrolled - (int) cancelledForThisCourse);
+            course.setCurrentEnrolled(newEnrolled);
+
+            if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity() && newEnrolled < course.getMaxCapacity()) {
+                log.info("Capacity freed up in Course ID {}. Transitioning status back to ACTIVE.", courseId);
                 course.setStatus(CourseStatus.ACTIVE);
             }
+
             courseRepository.save(course);
         }
-        return courseIds;
+
+        return Set.copyOf(sortedCourseIds);
     }
 }
