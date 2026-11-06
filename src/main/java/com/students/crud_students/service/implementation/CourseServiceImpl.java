@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -99,9 +100,13 @@ public class CourseServiceImpl implements CourseService {
             log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
             course.setCurrentEnrolled(0);
 
-            eventPublisher.publishEvent(
-                    new CourseCancelledEvent(course.getId(), course.getCode(), course.getTitle(), LocalDateTime.now())
-            );
+            eventPublisher.publishEvent(new CourseCancelledEvent(
+                    UUID.randomUUID().toString(),
+                    course.getId(),
+                    course.getCode(),
+                    course.getTitle(),
+                    LocalDateTime.now()
+            ));
         }
 
         Course updatedCourse = courseRepository.save(course);

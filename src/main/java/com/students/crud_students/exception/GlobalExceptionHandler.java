@@ -1,16 +1,22 @@
 package com.students.crud_students.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,6 +49,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ResponseEntity<ApiError> handleBusinessRuleViolationException(BusinessRuleViolationException ex) {
+        log.warn("Business rule violation exception: {}", ex.getMessage());
+        ApiError apiError = new ApiError(HttpStatus.CONFLICT.value(), "Business Rule Violation", ex.getMessage());
+        return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
         log.error("Data integrity violation: ", ex);
@@ -54,17 +67,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler(BusinessRuleViolationException.class)
-    public ResponseEntity<ApiError> handleBusinessRuleViolationException(BusinessRuleViolationException ex) {
-        log.error("Business rule violation exception: {}", ex.getMessage());
+    @ExceptionHandler({CannotAcquireLockException.class, PessimisticLockingFailureException.class})
+    public ResponseEntity<ApiError> handleLockingFailureException(Exception ex) {
+        log.error("Lock acquisition conflict: {}", ex.getMessage());
         ApiError apiError = new ApiError(
-                LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
-                "Business Rule Violation",
-                ex.getMessage(),
-                null
+                "Lock Acquisition Conflict",
+                "Resource is currently locked by another concurrent transaction. Please retry your request."
         );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(apiError);
+        return new ResponseEntity<>(apiError, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -106,6 +117,41 @@ public class GlobalExceptionHandler {
         log.warn("Type mismatch for parameter {}: {}", ex.getName(), ex.getMessage());
         ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST.value(), "Invalid Parameter Type", message);
         return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex) {
+        String message = String.format("Required query parameter '%s' of type '%s' is missing",
+                ex.getParameterName(), ex.getParameterType());
+        log.warn("Missing parameter: {}", message);
+        ApiError apiError = new ApiError(HttpStatus.BAD_REQUEST.value(), "Missing Required Parameter", message);
+        return new ResponseEntity<>(apiError, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        String message = String.format("HTTP method '%s' is not supported for this endpoint. Supported methods: %s",
+                ex.getMethod(), ex.getSupportedHttpMethods());
+        log.warn("Method not supported: {}", message);
+        ApiError apiError = new ApiError(HttpStatus.METHOD_NOT_ALLOWED.value(), "Method Not Allowed", message);
+        return new ResponseEntity<>(apiError, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        String message = String.format("Media type '%s' is not supported. Supported media types: %s",
+                ex.getContentType(), ex.getSupportedMediaTypes());
+        log.warn("Media type not supported: {}", message);
+        ApiError apiError = new ApiError(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "Unsupported Media Type", message);
+        return new ResponseEntity<>(apiError, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException ex) {
+        String message = String.format("Resource not found for endpoint %s %s", ex.getHttpMethod(), ex.getResourcePath());
+        log.warn("Endpoint not found: {}", message);
+        ApiError apiError = new ApiError(HttpStatus.NOT_FOUND.value(), "Resource Not Found", message);
+        return new ResponseEntity<>(apiError, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(Exception.class)
