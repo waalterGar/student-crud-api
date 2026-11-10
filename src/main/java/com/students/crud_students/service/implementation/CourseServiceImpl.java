@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +41,10 @@ public class CourseServiceImpl implements CourseService {
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
     public CourseResponseDTO createCourse(CreateCourseDTO dto) {
-        if (courseRepository.existsByCode(dto.code())) {
-            throw new DuplicateResourceException("Course with code " + dto.code() + " already exists");
+        String normalizedCode = dto.code().trim().toUpperCase(Locale.ROOT);
+
+        if (courseRepository.existsByCode(normalizedCode)) {
+            throw new DuplicateResourceException("Course with code " + normalizedCode + " already exists");
         }
 
         Course course = CourseMapper.toEntity(dto);
@@ -60,10 +63,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "course_detail_code", key = "#code")
+    @Cacheable(value = "course_detail_code", key = "#code.trim().toUpperCase()")
     public CourseResponseDTO getCourseByCode(String code) {
-        Course course = courseRepository.findByCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found with code: " + code));
+        String normalizedCode = code.trim().toUpperCase(Locale.ROOT);
+
+        Course course = courseRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with code: " + normalizedCode));
         return CourseMapper.toResponseDto(course);
     }
 
