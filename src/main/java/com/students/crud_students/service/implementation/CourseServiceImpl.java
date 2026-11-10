@@ -105,6 +105,12 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
 
         if (course.getStatus() == newStatus) {
+            if (newStatus == CourseStatus.CLOSED && course.getClosedReason() != CourseClosedReason.MANUAL) {
+                course.setClosedReason(CourseClosedReason.MANUAL);
+                log.info("Course ID {} upgraded closed_reason from CAPACITY to MANUAL.", id);
+                Course updatedCourse = courseRepository.save(course);
+                return CourseMapper.toResponseDto(updatedCourse);
+            }
             log.info("Course ID {} is already in status {}. No-op.", id, newStatus);
             return CourseMapper.toResponseDto(course);
         }
