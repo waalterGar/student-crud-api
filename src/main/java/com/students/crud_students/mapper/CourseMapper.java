@@ -5,6 +5,8 @@ import com.students.crud_students.dto.CourseResponseDTO;
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
 
+import java.util.Locale;
+
 public class CourseMapper {
 
     public static CourseResponseDTO toResponseDto(Course course) {
@@ -22,8 +24,8 @@ public class CourseMapper {
 
     public static Course toEntity(CreateCourseDTO dto) {
         Course course = new Course();
-        course.setCode(dto.code());
-        course.setTitle(dto.title());
+        course.setCode(dto.code().trim().toUpperCase(Locale.ROOT));
+        course.setTitle(dto.title() != null ? dto.title().trim() : null);
         course.setCredits(dto.credits());
         course.setMaxCapacity(dto.maxCapacity());
         course.setCurrentEnrolled(0);

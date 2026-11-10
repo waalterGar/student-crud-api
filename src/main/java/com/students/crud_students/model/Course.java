@@ -38,6 +38,10 @@ public class Course {
     @Column(nullable = false, length = 20)
     private CourseStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "closed_reason", length = 20)
+    private CourseClosedReason closedReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

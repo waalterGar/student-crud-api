@@ -3,13 +3,17 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.CreateCourseDTO;
 import com.students.crud_students.dto.CourseResponseDTO;
 import com.students.crud_students.event.CourseCancelledEvent;
+import com.students.crud_students.exception.BusinessRuleViolationException;
 import com.students.crud_students.exception.DuplicateResourceException;
+import com.students.crud_students.exception.InvalidStateTransitionException;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
+import com.students.crud_students.model.CourseClosedReason;
 import com.students.crud_students.model.CourseStatus;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.service.CourseService;
+import com.students.crud_students.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -22,12 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
+    private final EnrollmentService enrollmentService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -37,8 +43,10 @@ public class CourseServiceImpl implements CourseService {
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
     public CourseResponseDTO createCourse(CreateCourseDTO dto) {
-        if (courseRepository.existsByCode(dto.code())) {
-            throw new DuplicateResourceException("Course with code " + dto.code() + " already exists");
+        String normalizedCode = dto.code().trim().toUpperCase(Locale.ROOT);
+
+        if (courseRepository.existsByCode(normalizedCode)) {
+            throw new DuplicateResourceException("Course with code " + normalizedCode + " already exists");
         }
 
         Course course = CourseMapper.toEntity(dto);
@@ -57,10 +65,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "course_detail_code", key = "#code")
+    @Cacheable(value = "course_detail_code", key = "#code.trim().toUpperCase()")
     public CourseResponseDTO getCourseByCode(String code) {
-        Course course = courseRepository.findByCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found with code: " + code));
+        String normalizedCode = code.trim().toUpperCase(Locale.ROOT);
+
+        Course course = courseRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with code: " + normalizedCode));
         return CourseMapper.toResponseDto(course);
     }
 
@@ -90,15 +100,48 @@ public class CourseServiceImpl implements CourseService {
             @CacheEvict(value = "courses", allEntries = true),
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
-    public CourseResponseDTO updateCourseStatus(Long id, CourseStatus status) {
-        Course course = courseRepository.findById(id)
+    public CourseResponseDTO updateCourseStatus(Long id, CourseStatus newStatus) {
+        Course course = courseRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
 
-        course.setStatus(status);
+        if (course.getStatus() == newStatus) {
+            if (newStatus == CourseStatus.CLOSED && course.getClosedReason() != CourseClosedReason.MANUAL) {
+                course.setClosedReason(CourseClosedReason.MANUAL);
+                log.info("Course ID {} upgraded closed_reason from CAPACITY to MANUAL.", id);
+                Course updatedCourse = courseRepository.save(course);
+                return CourseMapper.toResponseDto(updatedCourse);
+            }
+            log.info("Course ID {} is already in status {}. No-op.", id, newStatus);
+            return CourseMapper.toResponseDto(course);
+        }
 
-        if (status == CourseStatus.CANCELLED) {
+        if (course.getStatus() == CourseStatus.CANCELLED) {
+            throw new InvalidStateTransitionException("A CANCELLED course cannot transition to any other status. Current status is CANCELLED.");
+        }
+
+        if (newStatus == CourseStatus.CLOSED) {
+            course.setStatus(CourseStatus.CLOSED);
+            course.setClosedReason(CourseClosedReason.MANUAL);
+            log.info("Course ID {} was MANUALLY closed by administrator.", id);
+
+        } else if (newStatus == CourseStatus.ACTIVE) {
+            if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
+                throw new BusinessRuleViolationException(
+                        String.format("Cannot reactivate course. Course is at maximum capacity (%d/%d).",
+                                course.getCurrentEnrolled(), course.getMaxCapacity()));
+            }
+            course.setStatus(CourseStatus.ACTIVE);
+            course.setClosedReason(null);
+            log.info("Course ID {} transitioned to ACTIVE.", id);
+
+        } else if (newStatus == CourseStatus.CANCELLED) {
             log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
+            course.setStatus(CourseStatus.CANCELLED);
+            course.setClosedReason(null);
             course.setCurrentEnrolled(0);
+
+            int cancelledCount = enrollmentService.cancelAllByCourse(course.getId());
+            log.info("Atomically cancelled {} active enrollments for course ID: {}", cancelledCount, course.getId());
 
             eventPublisher.publishEvent(new CourseCancelledEvent(
                     UUID.randomUUID().toString(),

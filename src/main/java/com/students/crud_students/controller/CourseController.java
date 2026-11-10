@@ -77,17 +77,47 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getAllCourses());
     }
 
-    @Operation(summary = "Update course status", description = "Updates operational status of a course (e.g., open/close enrollments).")
+    @Operation(summary = "Manually close a course",
+              description = "Marks course as CLOSED with MANUAL reason. Frees will not reopen the course automatically.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Course status updated successfully",
+            @ApiResponse(responseCode = "200", description = "Course closed successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CourseResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Course not found", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Course is CANCELLED (terminal state)", content = @Content)
+    })
+    @PatchMapping("/{id}/close")
+    public ResponseEntity<CourseResponseDTO> closeCourse(
+            @Parameter(description = "ID of the course to close", example = "1") @PathVariable Long id) {
+        CourseResponseDTO course = courseService.updateCourseStatus(id, CourseStatus.CLOSED);
+        return ResponseEntity.ok(course);
+    }
+
+    @Operation(summary = "Reactivate a closed course",
+            description = "Transitions a CLOSED course back to ACTIVE if available seats exist.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Course reactivated successfully",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = CourseResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Course not found", content = @Content),
+            @ApiResponse(responseCode = "409", description = "Course is CANCELLED or at maximum capacity", content = @Content)
+    })
+    @PatchMapping("/{id}/reactivate")
+    public ResponseEntity<CourseResponseDTO> reactivateCourse(
+            @Parameter(description = "ID of the course to reactivate", example = "1") @PathVariable Long id) {
+        CourseResponseDTO course = courseService.updateCourseStatus(id, CourseStatus.ACTIVE);
+        return ResponseEntity.ok(course);
+    }
+
+    @Operation(summary = "Cancel a course",
+            description = "Permanently cancels a course, resets capacity to 0, and triggers cascade cancellation.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Course cancelled successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = CourseResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "Course not found", content = @Content)
     })
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<CourseResponseDTO> updateCourseStatus(
-            @Parameter(description = "ID of the course", example = "1") @PathVariable Long id,
-            @Parameter(description = "New status to assign", example = "CLOSED") @RequestParam CourseStatus status) {
-        CourseResponseDTO updatedCourse = courseService.updateCourseStatus(id, status);
-        return ResponseEntity.ok(updatedCourse);
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<CourseResponseDTO> cancelCourse(
+            @Parameter(description = "ID of the course to cancel", example = "1") @PathVariable Long id) {
+        CourseResponseDTO course = courseService.updateCourseStatus(id, CourseStatus.CANCELLED);
+        return ResponseEntity.ok(course);
     }
 }
