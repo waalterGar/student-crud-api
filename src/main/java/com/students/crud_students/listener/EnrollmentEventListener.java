@@ -36,7 +36,6 @@ public class EnrollmentEventListener {
     private final StringRedisTemplate redisTemplate;
     private final NotificationRepository notificationRepository;
     private final StudentRepository studentRepository;
-    private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentService enrollmentService;
     private final CourseService courseService;
 
@@ -79,13 +78,9 @@ public class EnrollmentEventListener {
     }
 
     @RabbitHandler
-    @Transactional
     public void handleCourseCancelled(CourseCancelledEvent event) {
-        log.info("Received CourseCancelledEvent for course ID: {}. Processing cascade enrollment cancellation.", event.courseId());
-
-        int cancelledCount = enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(event.courseId());
-
-        log.info("Successfully cancelled {} active enrollments for course ID: {}", cancelledCount, event.courseId());
+        log.info("Received CourseCancelledEvent for course ID: {} [Event ID: {}]. Enrollments already cancelled atomically in DB. Ready for student notifications.",
+                event.courseId(), event.eventId());
     }
 
     @RabbitHandler

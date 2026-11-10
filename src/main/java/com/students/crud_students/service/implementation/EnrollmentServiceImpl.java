@@ -313,4 +313,11 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
         return Set.copyOf(sortedCourseIds);
     }
+
+    @Override
+    @Transactional
+    public int cancelAllByCourse(Long courseId) {
+        log.info("Cancelling all active enrollments atomically for course ID: {}", courseId);
+        return enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(courseId);
+    }
 }

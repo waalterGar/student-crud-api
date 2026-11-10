@@ -13,6 +13,7 @@ import com.students.crud_students.model.CourseClosedReason;
 import com.students.crud_students.model.CourseStatus;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.service.CourseService;
+import com.students.crud_students.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -32,6 +33,7 @@ import java.util.Locale;
 @Slf4j
 public class CourseServiceImpl implements CourseService {
     private final CourseRepository courseRepository;
+    private final EnrollmentService enrollmentService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -131,6 +133,9 @@ public class CourseServiceImpl implements CourseService {
             course.setStatus(CourseStatus.CANCELLED);
             course.setClosedReason(null);
             course.setCurrentEnrolled(0);
+
+            int cancelledCount = enrollmentService.cancelAllByCourse(course.getId());
+            log.info("Atomically cancelled {} active enrollments for course ID: {}", cancelledCount, course.getId());
 
             eventPublisher.publishEvent(new CourseCancelledEvent(
                     UUID.randomUUID().toString(),
