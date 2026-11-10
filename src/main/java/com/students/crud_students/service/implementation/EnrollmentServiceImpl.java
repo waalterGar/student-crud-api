@@ -82,6 +82,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
         if (course.getCurrentEnrolled().equals(course.getMaxCapacity())) {
             log.info("Course ID {} reached max capacity. Transitioning status to CLOSED.", course.getId());
             course.setStatus(CourseStatus.CLOSED);
+            course.setClosedReason(CourseClosedReason.CAPACITY);
         }
 
         courseRepository.save(course);
@@ -170,9 +171,12 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
         }
 
-        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
+        if (course.getStatus() == CourseStatus.CLOSED
+                && course.getClosedReason() == CourseClosedReason.CAPACITY
+                && previousEnrolled == course.getMaxCapacity()) {
             log.info("Seat freed up in Course ID {} after grading. Transitioning status back to ACTIVE.", course.getId());
             course.setStatus(CourseStatus.ACTIVE);
+            course.setClosedReason(null);
         }
 
         courseRepository.save(course);
@@ -225,9 +229,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             course.setCurrentEnrolled(course.getCurrentEnrolled() - 1);
         }
 
-        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()) {
+        if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity()  && course.getClosedReason() == CourseClosedReason.CAPACITY ) {
             log.info("Seat freed up in Course ID {}. Transitioning status back to ACTIVE.", course.getId());
             course.setStatus(CourseStatus.ACTIVE);
+            course.setClosedReason(null);
         }
 
         courseRepository.save(course);
@@ -297,9 +302,10 @@ public class EnrollmentServiceImpl implements EnrollmentService {
             int newEnrolled = Math.max(0, previousEnrolled - (int) cancelledForThisCourse);
             course.setCurrentEnrolled(newEnrolled);
 
-            if (course.getStatus() == CourseStatus.CLOSED && previousEnrolled == course.getMaxCapacity() && newEnrolled < course.getMaxCapacity()) {
+            if (course.getStatus() == CourseStatus.CLOSED && course.getClosedReason() == CourseClosedReason.CAPACITY  && previousEnrolled == course.getMaxCapacity() && newEnrolled < course.getMaxCapacity()) {
                 log.info("Capacity freed up in Course ID {}. Transitioning status back to ACTIVE.", courseId);
                 course.setStatus(CourseStatus.ACTIVE);
+                course.setClosedReason(null);
             }
 
             courseRepository.save(course);

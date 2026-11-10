@@ -3,10 +3,13 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.CreateCourseDTO;
 import com.students.crud_students.dto.CourseResponseDTO;
 import com.students.crud_students.event.CourseCancelledEvent;
+import com.students.crud_students.exception.BusinessRuleViolationException;
 import com.students.crud_students.exception.DuplicateResourceException;
+import com.students.crud_students.exception.InvalidStateTransitionException;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.CourseMapper;
 import com.students.crud_students.model.Course;
+import com.students.crud_students.model.CourseClosedReason;
 import com.students.crud_students.model.CourseStatus;
 import com.students.crud_students.repository.CourseRepository;
 import com.students.crud_students.service.CourseService;
@@ -90,14 +93,38 @@ public class CourseServiceImpl implements CourseService {
             @CacheEvict(value = "courses", allEntries = true),
             @CacheEvict(value = "courses_by_status", allEntries = true)
     })
-    public CourseResponseDTO updateCourseStatus(Long id, CourseStatus status) {
-        Course course = courseRepository.findById(id)
+    public CourseResponseDTO updateCourseStatus(Long id, CourseStatus newStatus) {
+        Course course = courseRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + id));
 
-        course.setStatus(status);
+        if (course.getStatus() == newStatus) {
+            log.info("Course ID {} is already in status {}. No-op.", id, newStatus);
+            return CourseMapper.toResponseDto(course);
+        }
 
-        if (status == CourseStatus.CANCELLED) {
+        if (course.getStatus() == CourseStatus.CANCELLED) {
+            throw new InvalidStateTransitionException("A CANCELLED course cannot transition to any other status. Current status is CANCELLED.");
+        }
+
+        if (newStatus == CourseStatus.CLOSED) {
+            course.setStatus(CourseStatus.CLOSED);
+            course.setClosedReason(CourseClosedReason.MANUAL);
+            log.info("Course ID {} was MANUALLY closed by administrator.", id);
+
+        } else if (newStatus == CourseStatus.ACTIVE) {
+            if (course.getCurrentEnrolled() >= course.getMaxCapacity()) {
+                throw new BusinessRuleViolationException(
+                        String.format("Cannot reactivate course. Course is at maximum capacity (%d/%d).",
+                                course.getCurrentEnrolled(), course.getMaxCapacity()));
+            }
+            course.setStatus(CourseStatus.ACTIVE);
+            course.setClosedReason(null);
+            log.info("Course ID {} transitioned to ACTIVE.", id);
+
+        } else if (newStatus == CourseStatus.CANCELLED) {
             log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
+            course.setStatus(CourseStatus.CANCELLED);
+            course.setClosedReason(null);
             course.setCurrentEnrolled(0);
 
             eventPublisher.publishEvent(new CourseCancelledEvent(
