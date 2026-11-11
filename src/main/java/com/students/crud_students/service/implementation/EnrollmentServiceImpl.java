@@ -47,9 +47,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#dto.courseId()"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public EnrollmentResponseDTO enrollStudent(EnrollmentRequestDTO dto) {
         Student student = studentRepository.findByIdForShare(dto.studentId())
@@ -141,9 +139,7 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#result.courseId"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public EnrollmentResponseDTO updateGrade(Long enrollmentId, UpdateGradeDTO dto) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
@@ -205,10 +201,8 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     @Transactional
     @Caching(evict = {
-            @CacheEvict(value = "course_detail", allEntries = true),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail", key = "#result.courseId"),
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public EnrollmentResponseDTO cancelEnrollment(Long enrollmentId) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)

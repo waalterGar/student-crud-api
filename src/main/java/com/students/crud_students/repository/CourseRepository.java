@@ -2,6 +2,8 @@ package com.students.crud_students.repository;
 
 import com.students.crud_students.model.Course;
 import com.students.crud_students.model.CourseStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Lock;
@@ -19,7 +21,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     boolean existsByCode(String code);
 
-    List<Course> findByStatus(CourseStatus status);
+    Page<Course> findByStatus(CourseStatus status, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Course c WHERE c.id = :id")

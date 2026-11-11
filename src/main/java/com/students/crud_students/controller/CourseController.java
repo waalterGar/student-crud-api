@@ -13,9 +13,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.students.crud_students.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 import java.util.List;
 
@@ -27,16 +32,25 @@ public class CourseController {
 
     private final CourseService courseService;
 
-    @Operation(summary = "Create a new course", description = "Registers a new course in the academic catalog specifying max capacity and credits.")
+    @Operation(summary = "Create a new course", description = "Registers a new course in the academic catalog.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Course created successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = CourseResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input payload or course code already exists", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Validation failed for request payload",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.students.crud_students.exception.ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Course code already exists",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.students.crud_students.exception.ApiError.class)))
     })
     @PostMapping
-    public ResponseEntity<CourseResponseDTO> createCourse(@Valid @RequestBody CreateCourseDTO createCourseDTO) {
-        CourseResponseDTO createdCourse = courseService.createCourse(createCourseDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdCourse);
+    public ResponseEntity<CourseResponseDTO> createCourse(@Valid @RequestBody CreateCourseDTO dto) {
+        CourseResponseDTO createdCourse = courseService.createCourse(dto);
+
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(createdCourse.id())
+                .toUri();
+
+        return ResponseEntity.created(location).body(createdCourse);
     }
 
     @Operation(summary = "Get course by ID", description = "Retrieves course details by its unique numeric identifier.")
@@ -65,16 +79,17 @@ public class CourseController {
         return ResponseEntity.ok(course);
     }
 
-    @Operation(summary = "List courses", description = "Returns the general list of courses. Optionally supports filtering by status (ACTIVE, CLOSED, CANCELLED).")
-    @ApiResponse(responseCode = "200", description = "Course list retrieved successfully")
+    @Operation(summary = "Get courses catalog", description = "Retrieves paginated courses, optionally filtered by status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Page of courses retrieved successfully")
+    })
     @GetMapping
-    public ResponseEntity<List<CourseResponseDTO>> getAllCourses(
-            @Parameter(description = "Course status for optional filtering", example = "ACTIVE")
-            @RequestParam(required = false) CourseStatus status) {
-        if (status != null) {
-            return ResponseEntity.ok(courseService.getCoursesByStatus(status));
-        }
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ResponseEntity<PageResponse<CourseResponseDTO>> getCourses(
+            @Parameter(description = "Optional status to filter courses by")
+            @RequestParam(required = false) CourseStatus status,
+            @PageableDefault(size = 10, sort = "code", direction = Sort.Direction.ASC) Pageable pageable) {
+        PageResponse<CourseResponseDTO> courses = courseService.getCourses(status, pageable);
+        return ResponseEntity.ok(courses);
     }
 
     @Operation(summary = "Manually close a course",

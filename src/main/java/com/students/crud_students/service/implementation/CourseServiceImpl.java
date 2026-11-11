@@ -22,7 +22,9 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.students.crud_students.dto.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,10 +40,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
-    })
     public CourseResponseDTO createCourse(CreateCourseDTO dto) {
         String normalizedCode = dto.code().trim().toUpperCase(Locale.ROOT);
 
@@ -74,31 +72,12 @@ public class CourseServiceImpl implements CourseService {
         return CourseMapper.toResponseDto(course);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = "courses")
-    public List<CourseResponseDTO> getAllCourses() {
-        return courseRepository.findAll().stream()
-                .map(CourseMapper::toResponseDto)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = "courses_by_status", key = "#status.name()")
-    public List<CourseResponseDTO> getCoursesByStatus(CourseStatus status) {
-        return courseRepository.findByStatus(status).stream()
-                .map(CourseMapper::toResponseDto)
-                .toList();
-    }
 
     @Override
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#id"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public CourseResponseDTO updateCourseStatus(Long id, CourseStatus newStatus) {
         Course course = courseRepository.findByIdForUpdate(id)
@@ -159,11 +138,20 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#courseId"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public void evictCourse(Long courseId) {
         log.info("Evicting course {}", courseId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<CourseResponseDTO> getCourses(CourseStatus status, Pageable pageable) {
+        Page<Course> coursePage = (status != null)
+                ? courseRepository.findByStatus(status, pageable)
+                : courseRepository.findAll(pageable);
+
+        Page<CourseResponseDTO> dtoPage = coursePage.map(CourseMapper::toResponseDto);
+        return PageResponse.from(dtoPage);
     }
 }
