@@ -6,6 +6,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,22 +14,23 @@ import java.util.Map;
 @Configuration
 public class RabbitMQConfig {
 
-    @Value("${rabbitmq.exchange.name:student.exchange}")
+    // Properties alineadas 1:1 con application.properties (namespace app.rabbitmq.*)
+    @Value("${app.rabbitmq.exchange:student.exchange}")
     private String exchangeName;
 
-    @Value("${rabbitmq.queue.notification.name:student.notification.queue}")
+    @Value("${app.rabbitmq.queue:student.notification.queue}")
     private String notificationQueueName;
 
-    @Value("${rabbitmq.queue.email.name:student.email.queue}")
+    @Value("${app.rabbitmq.email-queue:student.email.queue}")
     private String emailQueueName;
 
-    @Value("${rabbitmq.queue.enrollment.name:student.enrollment.queue}")
+    @Value("${app.rabbitmq.enrollment-queue:student.enrollment.queue}")
     private String enrollmentQueueName;
 
-    @Value("${rabbitmq.routing.key:student.created}")
+    @Value("${app.rabbitmq.routing-key:student.created}")
     private String routingKey;
 
-    @Value("${rabbitmq.routing.key.enrollment:student.enrollment.created}")
+    @Value("${app.rabbitmq.enrollment-routing-key:student.enrollment.created}")
     private String enrollmentRoutingKey;
 
     @Value("${app.rabbitmq.unenrollment-routing-key:student.enrollment.cancelled}")
@@ -192,6 +194,12 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+
+        DefaultJackson2JavaTypeMapper typeMapper = new DefaultJackson2JavaTypeMapper();
+        typeMapper.setTrustedPackages("com.students.crud_students.event");
+        converter.setJavaTypeMapper(typeMapper);
+
+        return converter;
     }
 }
