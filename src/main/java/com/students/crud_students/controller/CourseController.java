@@ -13,7 +13,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.students.crud_students.dto.PageResponse;
@@ -31,16 +32,25 @@ public class CourseController {
 
     private final CourseService courseService;
 
-    @Operation(summary = "Create a new course", description = "Registers a new course in the academic catalog specifying max capacity and credits.")
+    @Operation(summary = "Create a new course", description = "Registers a new course in the academic catalog.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Course created successfully",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = CourseResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input payload or course code already exists", content = @Content)
+            @ApiResponse(responseCode = "400", description = "Validation failed for request payload",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.students.crud_students.exception.ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Course code already exists",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = com.students.crud_students.exception.ApiError.class)))
     })
     @PostMapping
-    public ResponseEntity<CourseResponseDTO> createCourse(@Valid @RequestBody CreateCourseDTO createCourseDTO) {
-        CourseResponseDTO createdCourse = courseService.createCourse(createCourseDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdCourse);
+    public ResponseEntity<CourseResponseDTO> createCourse(@Valid @RequestBody CreateCourseDTO dto) {
+        CourseResponseDTO createdCourse = courseService.createCourse(dto);
+
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(createdCourse.id())
+                .toUri();
+
+        return ResponseEntity.created(location).body(createdCourse);
     }
 
     @Operation(summary = "Get course by ID", description = "Retrieves course details by its unique numeric identifier.")

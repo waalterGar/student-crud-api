@@ -20,6 +20,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import com.students.crud_students.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.hamcrest.Matchers.containsString;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -68,6 +70,7 @@ class CourseControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
+                    .andExpect(header().string("Location", containsString("/api/v1/courses/1")))
                     .andExpect(jsonPath("$.id", is(1)))
                     .andExpect(jsonPath("$.code", is("CS101")))
                     .andExpect(jsonPath("$.status", is("ACTIVE")))
