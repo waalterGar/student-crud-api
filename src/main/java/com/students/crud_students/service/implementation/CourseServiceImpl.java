@@ -40,10 +40,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
-    })
     public CourseResponseDTO createCourse(CreateCourseDTO dto) {
         String normalizedCode = dto.code().trim().toUpperCase(Locale.ROOT);
 
@@ -81,9 +77,7 @@ public class CourseServiceImpl implements CourseService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#id"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public CourseResponseDTO updateCourseStatus(Long id, CourseStatus newStatus) {
         Course course = courseRepository.findByIdForUpdate(id)
@@ -144,9 +138,7 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Caching(evict = {
             @CacheEvict(value = "course_detail", key = "#courseId"),
-            @CacheEvict(value = "course_detail_code", allEntries = true),
-            @CacheEvict(value = "courses", allEntries = true),
-            @CacheEvict(value = "courses_by_status", allEntries = true)
+            @CacheEvict(value = "course_detail_code", allEntries = true)
     })
     public void evictCourse(Long courseId) {
         log.info("Evicting course {}", courseId);
