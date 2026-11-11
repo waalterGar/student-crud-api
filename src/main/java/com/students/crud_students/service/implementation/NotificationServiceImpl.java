@@ -3,6 +3,7 @@ package com.students.crud_students.service.implementation;
 import com.students.crud_students.dto.NotificationBatchResponseDTO;
 import com.students.crud_students.dto.NotificationResponseDTO;
 import com.students.crud_students.dto.PageResponse;
+import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.mapper.NotificationMapper;
 import com.students.crud_students.model.Notification;
 import com.students.crud_students.repository.NotificationRepository;
@@ -33,7 +34,7 @@ public class NotificationServiceImpl implements NotificationService {
                 studentId, pageable.getPageNumber());
 
         if (!studentRepository.existsById(studentId)) {
-            throw new IllegalArgumentException("Student not found with ID: " + studentId);
+            throw new ResourceNotFoundException("Student not found with ID: " + studentId);
         }
 
         Page<NotificationResponseDTO> page = notificationRepository.findByStudentId(studentId, pageable)
@@ -48,7 +49,7 @@ public class NotificationServiceImpl implements NotificationService {
     public NotificationResponseDTO markAsRead(Long notificationId) {
         log.info("Marking notification ID: {} as read", notificationId);
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("Notification not found with ID: " + notificationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + notificationId));
 
         notification.setRead(true);
         Notification updatedNotification = notificationRepository.save(notification);
@@ -60,9 +61,14 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "notifications", key = "#studentId")
+    @CacheEvict(value = "student_notifications", key = "#studentId")
     public NotificationBatchResponseDTO markAllAsRead(Long studentId) {
         log.info("Marking all unread notifications as read for student ID: {}", studentId);
+
+        if (!studentRepository.existsById(studentId)) {
+            throw new ResourceNotFoundException("Student not found with ID: " + studentId);
+        }
+
         int updatedCount = notificationRepository.markAllAsReadByStudentId(studentId);
         log.info("Updated {} notifications to read status for student ID: {}", updatedCount, studentId);
 
