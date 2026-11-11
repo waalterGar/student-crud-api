@@ -16,6 +16,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.students.crud_students.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 import java.util.List;
 
@@ -65,16 +69,17 @@ public class CourseController {
         return ResponseEntity.ok(course);
     }
 
-    @Operation(summary = "List courses", description = "Returns the general list of courses. Optionally supports filtering by status (ACTIVE, CLOSED, CANCELLED).")
-    @ApiResponse(responseCode = "200", description = "Course list retrieved successfully")
+    @Operation(summary = "Get courses catalog", description = "Retrieves paginated courses, optionally filtered by status.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Page of courses retrieved successfully")
+    })
     @GetMapping
-    public ResponseEntity<List<CourseResponseDTO>> getAllCourses(
-            @Parameter(description = "Course status for optional filtering", example = "ACTIVE")
-            @RequestParam(required = false) CourseStatus status) {
-        if (status != null) {
-            return ResponseEntity.ok(courseService.getCoursesByStatus(status));
-        }
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ResponseEntity<PageResponse<CourseResponseDTO>> getCourses(
+            @Parameter(description = "Optional status to filter courses by")
+            @RequestParam(required = false) CourseStatus status,
+            @PageableDefault(size = 10, sort = "code", direction = Sort.Direction.ASC) Pageable pageable) {
+        PageResponse<CourseResponseDTO> courses = courseService.getCourses(status, pageable);
+        return ResponseEntity.ok(courses);
     }
 
     @Operation(summary = "Manually close a course",

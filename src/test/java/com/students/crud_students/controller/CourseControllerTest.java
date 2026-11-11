@@ -18,6 +18,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import com.students.crud_students.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +28,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -176,33 +179,37 @@ class CourseControllerTest {
         }
 
         @Test
-        @DisplayName("Should return 200 with all courses without filter")
+        @DisplayName("Should return 200 with all courses without filter (paginated)")
         void shouldReturn200ForAllCourses() throws Exception {
             List<CourseResponseDTO> list = List.of(
                     new CourseResponseDTO(1L, "CS101", "CS1", 4, 30, 0, CourseStatus.ACTIVE, LocalDateTime.now()),
                     new CourseResponseDTO(2L, "MATH101", "Math", 6, 25, 0, CourseStatus.ACTIVE, LocalDateTime.now())
             );
+            PageResponse<CourseResponseDTO> pageResponse = new PageResponse<>(list, 0, 10, 2L, 1, true);
 
-            when(courseService.getAllCourses()).thenReturn(list);
+            when(courseService.getCourses(eq(null), any(Pageable.class))).thenReturn(pageResponse);
 
             mockMvc.perform(get("/api/v1/courses"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(2)));
+                    .andExpect(jsonPath("$.content", hasSize(2)))
+                    .andExpect(jsonPath("$.totalElements", is(2)))
+                    .andExpect(jsonPath("$.pageNumber", is(0)));
         }
 
         @Test
-        @DisplayName("Should return 200 with courses filtered by status")
+        @DisplayName("Should return 200 with courses filtered by status (paginated)")
         void shouldReturn200ForFilteredCourses() throws Exception {
             List<CourseResponseDTO> list = List.of(
                     new CourseResponseDTO(1L, "CS101", "CS1", 4, 30, 0, CourseStatus.ACTIVE, LocalDateTime.now())
             );
+            PageResponse<CourseResponseDTO> pageResponse = new PageResponse<>(list, 0, 10, 1L, 1, true);
 
-            when(courseService.getCoursesByStatus(CourseStatus.ACTIVE)).thenReturn(list);
+            when(courseService.getCourses(eq(CourseStatus.ACTIVE), any(Pageable.class))).thenReturn(pageResponse);
 
             mockMvc.perform(get("/api/v1/courses?status=ACTIVE"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].status", is("ACTIVE")));
+                    .andExpect(jsonPath("$.content", hasSize(1)))
+                    .andExpect(jsonPath("$.content[0].status", is("ACTIVE")));
         }
 
         @Test
