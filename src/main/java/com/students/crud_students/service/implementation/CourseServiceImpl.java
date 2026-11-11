@@ -114,19 +114,20 @@ public class CourseServiceImpl implements CourseService {
             log.info("Course ID {} transitioned to ACTIVE.", id);
 
         } else if (newStatus == CourseStatus.CANCELLED) {
-            log.warn("Course ID {} was CANCELLED. Resetting capacity and emitting CourseCancelledEvent.", id);
+            log.warn("Course ID {} was CANCELLED. Resetting capacity, cancelling active enrollments and emitting CourseCancelledEvent.", id);
             course.setStatus(CourseStatus.CANCELLED);
             course.setClosedReason(null);
             course.setCurrentEnrolled(0);
 
-            int cancelledCount = enrollmentService.cancelAllByCourse(course.getId());
-            log.info("Atomically cancelled {} active enrollments for course ID: {}", cancelledCount, course.getId());
+            List<Long> affectedStudentIds = enrollmentService.cancelAllByCourse(course.getId());
+            log.info("Atomically cancelled {} active enrollments for course ID: {}", affectedStudentIds.size(), course.getId());
 
             eventPublisher.publishEvent(new CourseCancelledEvent(
                     UUID.randomUUID().toString(),
                     course.getId(),
                     course.getCode(),
                     course.getTitle(),
+                    affectedStudentIds,
                     LocalDateTime.now()
             ));
         }

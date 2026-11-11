@@ -310,8 +310,21 @@ public class EnrollmentServiceImpl implements EnrollmentService {
 
     @Override
     @Transactional
-    public int cancelAllByCourse(Long courseId) {
-        log.info("Cancelling all active enrollments atomically for course ID: {}", courseId);
-        return enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(courseId);
+    public List<Long> cancelAllByCourse(Long courseId) {
+        log.info("Cancelling all active enrollments for course ID: {}", courseId);
+
+        List<Long> affectedStudentIds = enrollmentRepository.findByCourseIdAndStatus(courseId, EnrollmentStatus.ACTIVE).stream()
+                .map(enrollment -> enrollment.getStudent().getId())
+                .distinct()
+                .toList();
+
+        if (affectedStudentIds.isEmpty()) {
+            return List.of();
+        }
+
+        int updatedCount = enrollmentRepository.cancelAllActiveEnrollmentsByCourseId(courseId);
+        log.info("Bulk updated {} enrollments to CANCELLED for course ID: {}", updatedCount, courseId);
+
+        return affectedStudentIds;
     }
 }

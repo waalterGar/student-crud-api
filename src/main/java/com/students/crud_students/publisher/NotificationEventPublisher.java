@@ -7,9 +7,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -53,7 +50,7 @@ public class NotificationEventPublisher {
     }
 
     public void publishStudentUnenrolledEvent(StudentUnenrolledEvent event) {
-        log.info("Publishing StudenUnenrolledEvent for enrollmentId {} to exchange {} using routing key {}",
+        log.info("Publishing StudentUnenrolledEvent for enrollmentId {} to exchange {} using routing key {}",
                 event.enrollmentId(), exchangeName, studentUnenrolledRoutingKey);
 
         rabbitTemplate.convertAndSend(exchangeName, studentUnenrolledRoutingKey, event);

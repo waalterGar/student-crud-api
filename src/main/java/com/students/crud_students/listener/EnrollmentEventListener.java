@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -38,6 +39,7 @@ public class EnrollmentEventListener {
     private final StudentRepository studentRepository;
     private final EnrollmentService enrollmentService;
     private final CourseService courseService;
+    private final CacheManager cacheManager;
 
     // Prefijos diferenciados para evitar colisiones en Redis
     private static final String ENROLLMENT_IDEMPOTENCY_PREFIX = "processed_enrollment_event:";
@@ -79,8 +81,39 @@ public class EnrollmentEventListener {
 
     @RabbitHandler
     public void handleCourseCancelled(CourseCancelledEvent event) {
-        log.info("Received CourseCancelledEvent for course ID: {} [Event ID: {}]. Enrollments already cancelled atomically in DB. Ready for student notifications.",
-                event.courseId(), event.eventId());
+        int studentCount = (event.affectedStudentIds() != null) ? event.affectedStudentIds().size() : 0;
+        log.info("Received CourseCancelledEvent for course ID: {} [Event ID: {}]. Dispatching notifications to {} students.",
+                event.courseId(), event.eventId(), studentCount);
+
+        if (event.affectedStudentIds() == null || event.affectedStudentIds().isEmpty()) {
+            return;
+        }
+
+        String message = String.format("Your enrollment in course %s (%s) was cancelled because the course was cancelled by administration.",
+                event.courseTitle(), event.courseCode());
+
+        for (Long studentId : event.affectedStudentIds()) {
+            studentRepository.findById(studentId).ifPresent(student -> {
+                Notification notification = Notification.builder()
+                        .message(message)
+                        .type(NotificationType.COURSE_UNENROLLED)
+                        .read(false)
+                        .student(student)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                notificationRepository.save(notification);
+
+
+                var cache = cacheManager.getCache("student_notifications");
+                if (cache != null) {
+                    cache.evict(studentId);
+                }
+            });
+        }
+
+        log.info("Successfully created notifications and evicted cache for {} students of course ID: {}",
+                studentCount, event.courseId());
     }
 
     @RabbitHandler

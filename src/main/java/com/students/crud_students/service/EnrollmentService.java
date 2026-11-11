@@ -25,5 +25,5 @@ public interface EnrollmentService {
     @Transactional
     Set<Long> cancelAllByStudent(Long studentId);
 
-    int cancelAllByCourse(Long courseId);
+    List<Long> cancelAllByCourse(Long courseId);
 }
