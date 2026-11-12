@@ -30,8 +30,9 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.markAsRead(id));
     }
 
-    @PatchMapping("/notifications/{id}/read-all")
-    public ResponseEntity<NotificationBatchResponseDTO> markAllAsRead(@PathVariable Long id) {
-        return ResponseEntity.ok(notificationService.markAllAsRead(id));
+    @PatchMapping("/students/{studentId}/notifications/read-all")
+    public ResponseEntity<NotificationBatchResponseDTO> markAllAsRead(
+            @PathVariable Long studentId) {
+        return ResponseEntity.ok(notificationService.markAllAsRead(studentId));
     }
 }
