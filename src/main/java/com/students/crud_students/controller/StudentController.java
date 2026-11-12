@@ -33,8 +33,11 @@ public class StudentController {
 
     private final StudentService studentService;
 
-    @Operation(summary = "Get all students", description = "Retrieves a complete list of registered students.")
-    @ApiResponse(responseCode = "200", description = "List retrieved successfully")
+    @Operation(
+            summary = "Get paginated students",
+            description = "Retrieves a paginated and sorted list of registered students."
+    )
+    @ApiResponse(responseCode = "200", description = "Page of students retrieved successfully")
     @GetMapping
     public ResponseEntity<PageResponse<StudentResponseDTO>> getAllStudents(
             @ParameterObject
