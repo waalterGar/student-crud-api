@@ -5,9 +5,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://${SPRING_DATASOURCE_HOST:localhost}:5432/students_db
-    username: postgres
-    password: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/students_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
       initialization-fail-timeout: 0
@@ -25,14 +25,19 @@ spring:
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:localhost}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
   mail:
-    host: ${SPRING_MAIL_HOST:mailpit}
-    port: ${SPRING_MAIL_PORT:1025}
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
 
   rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
         retry:
