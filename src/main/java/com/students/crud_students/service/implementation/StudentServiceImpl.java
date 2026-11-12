@@ -1,6 +1,7 @@
 package com.students.crud_students.service.implementation;
 
 import com.students.crud_students.dto.AcademicHistoryDTO;
+import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.dto.StudentUpdateDTO;
@@ -23,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,10 +45,19 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<StudentResponseDTO> getAllStudents() {
-        return studentRepository.findAll().stream()
+    public PageResponse<StudentResponseDTO> getAllStudents(Pageable pageable) {
+        Page<Student> studentsPage = studentRepository.findAll(pageable);
+        List<StudentResponseDTO> content = studentsPage.getContent().stream()
                 .map(StudentMapper::toResponseDto)
                 .toList();
+        return new PageResponse<>(
+                content,
+                studentsPage.getNumber(),
+                studentsPage.getSize(),
+                studentsPage.getTotalElements(),
+                studentsPage.getTotalPages(),
+                studentsPage.isLast()
+        );
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.students.crud_students.controller;
 
 import com.students.crud_students.dto.AcademicHistoryDTO;
+import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.dto.StudentRequestDTO;
 import com.students.crud_students.dto.StudentResponseDTO;
 import com.students.crud_students.dto.StudentUpdateDTO;
@@ -15,11 +16,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/students")
@@ -32,8 +36,10 @@ public class StudentController {
     @Operation(summary = "Get all students", description = "Retrieves a complete list of registered students.")
     @ApiResponse(responseCode = "200", description = "List retrieved successfully")
     @GetMapping
-    public ResponseEntity<List<StudentResponseDTO>> getAllStudents() {
-        return ResponseEntity.ok(studentService.getAllStudents());
+    public ResponseEntity<PageResponse<StudentResponseDTO>> getAllStudents(
+            @ParameterObject
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(studentService.getAllStudents(pageable));
     }
 
     @Operation(summary = "Get a student by ID")
