@@ -83,6 +83,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
+      JWT_SECRET: ${JWT_SECRET:-dGhpcy1pcy1hLWRldi1zZWNyZXQta2V5LWZvci1zdHVkZW50LWNydWQtYXBpLTI1Ni1iaXRz}
     networks:
       - student-network
 
