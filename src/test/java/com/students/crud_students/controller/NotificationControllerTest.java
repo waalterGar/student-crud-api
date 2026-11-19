@@ -1,10 +1,14 @@
 package com.students.crud_students.controller;
 
+import com.students.crud_students.config.SecurityConfig;
 import com.students.crud_students.dto.NotificationBatchResponseDTO;
 import com.students.crud_students.dto.NotificationResponseDTO;
 import com.students.crud_students.dto.PageResponse;
 import com.students.crud_students.exception.ResourceNotFoundException;
 import com.students.crud_students.model.NotificationType;
+import com.students.crud_students.security.JwtAccessDeniedHandler;
+import com.students.crud_students.security.JwtAuthenticationEntryPoint;
+import com.students.crud_students.security.JwtService;
 import com.students.crud_students.service.NotificationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,7 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(NotificationController.class)
+@Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
+@WithMockUser
 @TestPropertySource(properties = "springdoc.api-docs.enabled=false")
 class NotificationControllerTest {
 
@@ -39,6 +47,9 @@ class NotificationControllerTest {
 
     @MockBean
     private NotificationService notificationService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Nested
     @DisplayName("GET /api/v1/students/{studentId}/notifications - Get Student Notifications")

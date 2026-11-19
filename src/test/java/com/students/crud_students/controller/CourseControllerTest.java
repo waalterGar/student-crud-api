@@ -22,10 +22,8 @@ import com.students.crud_students.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.hamcrest.Matchers.containsString;
-
 import java.time.LocalDateTime;
 import java.util.List;
-
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -37,8 +35,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.students.crud_students.security.JwtService;
+import org.springframework.security.test.context.support.WithMockUser;
+import com.students.crud_students.config.SecurityConfig;
+import com.students.crud_students.security.JwtAccessDeniedHandler;
+import com.students.crud_students.security.JwtAuthenticationEntryPoint;
+import org.springframework.context.annotation.Import;
+
 
 @WebMvcTest(CourseController.class)
+@Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
+@WithMockUser
 @TestPropertySource(properties = "springdoc.api-docs.enabled=false")
 class CourseControllerTest {
 
@@ -50,6 +57,9 @@ class CourseControllerTest {
 
     @MockBean
     private CourseService courseService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Nested
     @DisplayName("POST /api/v1/courses - Create Course")
