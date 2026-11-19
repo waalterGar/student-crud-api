@@ -44,7 +44,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.students.crud_students.config.SecurityConfig;
+import com.students.crud_students.security.JwtAccessDeniedHandler;
+import com.students.crud_students.security.JwtAuthenticationEntryPoint;
+import com.students.crud_students.security.JwtService;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
+
 @WebMvcTest(StudentController.class)
+@Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
+@WithMockUser
 @TestPropertySource(properties = "springdoc.api-docs.enabled=false")
 class StudentControllerTest {
 
@@ -56,6 +65,9 @@ class StudentControllerTest {
 
     @MockBean
     private StudentService studentService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Nested
     @DisplayName("GET /api/v1/students - Paginated Catalog & Single Queries")

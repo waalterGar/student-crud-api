@@ -19,6 +19,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import com.students.crud_students.config.SecurityConfig;
+import com.students.crud_students.security.JwtAccessDeniedHandler;
+import com.students.crud_students.security.JwtAuthenticationEntryPoint;
+import com.students.crud_students.security.JwtService;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,6 +43,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(EnrollmentController.class)
+@Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAccessDeniedHandler.class})
+@WithMockUser
 @TestPropertySource(properties = "springdoc.api-docs.enabled=false")
 class EnrollmentControllerTest {
 
@@ -48,6 +56,9 @@ class EnrollmentControllerTest {
 
     @MockBean
     private EnrollmentService enrollmentService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Nested
     @DisplayName("POST /api/v1/enrollments - Enroll Student")
